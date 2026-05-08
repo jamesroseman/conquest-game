@@ -4,6 +4,7 @@ Two steps in order:
     1. Apply army casualties on every country with cubes (round DOWN; min 0).
     2. Place new cubes on uniformly-random unvaccinated countries, with outbreak chains.
 """
+
 from __future__ import annotations
 
 import math
@@ -49,9 +50,7 @@ def run_virus_phase(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult:
 
     # Step 2: place cubes.
     cube_count = cfg.cubes_to_spread(snapshot.game.outbreaks.count)
-    eligible = [
-        cid for cid, s in snapshot.country_states.items() if not s.vaccinated
-    ]
+    eligible = [cid for cid, s in snapshot.country_states.items() if not s.vaccinated]
     if not eligible:
         return result
 

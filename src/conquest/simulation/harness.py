@@ -4,6 +4,7 @@ Used for balance work: parameter sweeps over `GameConfig`, archetype matchups, s
 
 Bypasses the GraphQL/REST layers; talks directly to the rules engine for speed.
 """
+
 from __future__ import annotations
 
 import time
@@ -157,7 +158,8 @@ def run_simulation(
         archetypes=list(archetypes),
         rounds_played=rounds_played,
         winner_archetype=winner_archetype,
-        ended_reason=snap.game.ended_reason or ("max_rounds" if rounds_played >= max_rounds else None),
+        ended_reason=snap.game.ended_reason
+        or ("max_rounds" if rounds_played >= max_rounds else None),
         outbreaks=snap.game.outbreaks.count,
         elapsed_ms=(time.perf_counter() - t0) * 1000,
     )

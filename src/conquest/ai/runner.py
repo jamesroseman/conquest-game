@@ -13,6 +13,7 @@ Three modes (see CLAUDE.md § AI runner):
 Each call validates and applies actions through the same `apply_action` / `end_turn` paths
 as a human submission.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -66,9 +67,7 @@ def run_ai_setup_step(snapshot: GameSnapshot, rng: SeededRNG) -> bool:
         return True
     if snapshot.game.setup.phase == "capitals":
         target = policy.setup_capital_target(snapshot, player.player_id, rng)
-        setup_engine.place_capital(
-            snapshot, player.player_id, PlaceCapital(country_id=target)
-        )
+        setup_engine.place_capital(snapshot, player.player_id, PlaceCapital(country_id=target))
         return True
     return False
 

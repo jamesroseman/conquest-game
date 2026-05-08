@@ -1,4 +1,5 @@
 """Player — per-game participant. See CLAUDE.md § User vs Player."""
+
 from __future__ import annotations
 
 from typing import Literal

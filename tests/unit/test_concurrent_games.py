@@ -1,4 +1,5 @@
 """Multiple games can run independently; per-user active-game cap is enforced."""
+
 from __future__ import annotations
 
 import pytest
@@ -49,7 +50,5 @@ def test_list_games_for_user_includes_seat_membership() -> None:
     repo = InMemoryRepository()
     svc = GameService(repo)
     g = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1)
-    svc.join_game(
-        game_id=g.game_id, user_id="u2", display_name="B", invite_code=g.invite_code
-    )
+    svc.join_game(game_id=g.game_id, user_id="u2", display_name="B", invite_code=g.invite_code)
     assert any(x.game_id == g.game_id for x in svc.list_games_for_user("u2"))

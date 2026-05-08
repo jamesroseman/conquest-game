@@ -1,4 +1,5 @@
 """Capital-conquest cascade. See CLAUDE.md § Player elimination — capital conquest."""
+
 from __future__ import annotations
 
 from conquest.models.snapshot import GameSnapshot
@@ -52,7 +53,9 @@ def check_win_condition(snapshot: GameSnapshot) -> str | None:
             return alive[0].player_id
     elif cfg.win_condition == "capital_control":
         # Single owner of all capitals (proxy: only one alive with a capital).
-        capital_owners = {s.is_capital_of for s in snapshot.country_states.values() if s.is_capital_of}
+        capital_owners = {
+            s.is_capital_of for s in snapshot.country_states.values() if s.is_capital_of
+        }
         if len(capital_owners) == 1:
             return next(iter(capital_owners))
     return None

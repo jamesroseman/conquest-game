@@ -4,6 +4,7 @@ Strategic priors live in `WEIGHTS` and a few overridable methods. Archetypes cha
 constants — no archetype rewrites the whole decision pipeline. This keeps the AI predictable
 to test and reason about.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -41,13 +42,9 @@ class BaselinePolicy:
 
     # --- Setup -----------------------------------------------------------------
 
-    def setup_troop_target(
-        self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG
-    ) -> str:
+    def setup_troop_target(self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG) -> str:
         # Until every country has an owner, claim a fresh one.
-        unclaimed = [
-            cid for cid, s in snapshot.country_states.items() if s.owner_player_id is None
-        ]
+        unclaimed = [cid for cid, s in snapshot.country_states.items() if s.owner_player_id is None]
         if unclaimed:
             return rng.choice(sorted(unclaimed))
         # Otherwise reinforce our largest country.
@@ -64,9 +61,7 @@ class BaselinePolicy:
     ) -> str:
         # Place on a country with disease cubes if we own one nearby; else our biggest.
         owned = snapshot.countries_owned_by(player_id)
-        infected = [
-            cid for cid in owned if snapshot.country_states[cid].disease_cubes > 0
-        ]
+        infected = [cid for cid in owned if snapshot.country_states[cid].disease_cubes > 0]
         if infected:
             return min(
                 infected,
@@ -74,14 +69,14 @@ class BaselinePolicy:
             )
         return max(owned, key=lambda c: snapshot.country_states[c].armies)
 
-    def setup_capital_target(
-        self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG
-    ) -> str:
+    def setup_capital_target(self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG) -> str:
         # Capital on a centrally-connected, well-armied country, ideally inland.
         owned = snapshot.countries_owned_by(player_id)
+
         def score(cid: str) -> tuple[int, int]:
             country = snapshot.map.countries[cid]
             return (len(country.path_ids), snapshot.country_states[cid].armies)
+
         return max(owned, key=score)
 
     # --- Reinforcements --------------------------------------------------------
@@ -114,9 +109,7 @@ class BaselinePolicy:
 
     # --- Actions ---------------------------------------------------------------
 
-    def take_actions(
-        self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG
-    ) -> list[Action]:
+    def take_actions(self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG) -> list[Action]:
         actions: list[Action] = []
         max_actions = snapshot.game.turn.actions_remaining
         cfg = snapshot.game.config
@@ -181,9 +174,7 @@ class BaselinePolicy:
             return Cure()
         return None
 
-    def _maybe_vaccine(
-        self, snapshot: GameSnapshot, player_id: str
-    ) -> CreateVaccine | None:
+    def _maybe_vaccine(self, snapshot: GameSnapshot, player_id: str) -> CreateVaccine | None:
         cur = snapshot.players[player_id].researcher_country_id
         if cur is None:
             return None
@@ -212,7 +203,9 @@ class BaselinePolicy:
                 gap = state.armies - target.armies
                 bias = 1.0 + self.weights.expand * (1.0 if target.owner_player_id is None else 0.0)
                 if target.owner_player_id is not None:
-                    bias += self.weights.target_leader * self._leader_bias(snapshot, target.owner_player_id)
+                    bias += self.weights.target_leader * self._leader_bias(
+                        snapshot, target.owner_player_id
+                    )
                 score = gap * bias * self.weights.risk_tolerance
                 if score <= 0:
                     continue
@@ -255,9 +248,8 @@ class BaselinePolicy:
             if self._is_border(snapshot, cid, player_id):
                 continue
             for nb in snapshot.map.neighbors(cid):
-                if (
-                    snapshot.country_states[nb].owner_player_id == player_id
-                    and self._is_border(snapshot, nb, player_id)
+                if snapshot.country_states[nb].owner_player_id == player_id and self._is_border(
+                    snapshot, nb, player_id
                 ):
                     return MoveTroops(
                         from_country_id=cid,

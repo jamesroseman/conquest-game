@@ -1,4 +1,5 @@
 """Application config (env vars). Distinct from `GameConfig` (gameplay tuning)."""
+
 from __future__ import annotations
 
 import os

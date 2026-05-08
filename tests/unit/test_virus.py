@@ -1,4 +1,5 @@
 """End-of-round virus phase: casualties, spread, outbreaks."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -16,24 +17,54 @@ from conquest.models.snapshot import GameSnapshot
 def _two_country_snapshot() -> GameSnapshot:
     cfg = GameConfig()
     countries = {
-        "c1": Country(country_id="c1", name="A", continent_id="x",
-                      tiles=[(0, 0)], centroid=(0, 0), path_ids=["p1"]),
-        "c2": Country(country_id="c2", name="B", continent_id="x",
-                      tiles=[(1, 0)], centroid=(1, 0), path_ids=["p1"]),
+        "c1": Country(
+            country_id="c1",
+            name="A",
+            continent_id="x",
+            tiles=[(0, 0)],
+            centroid=(0, 0),
+            path_ids=["p1"],
+        ),
+        "c2": Country(
+            country_id="c2",
+            name="B",
+            continent_id="x",
+            tiles=[(1, 0)],
+            centroid=(1, 0),
+            path_ids=["p1"],
+        ),
     }
     paths = {"p1": Path(path_id="p1", country_a_id="c1", country_b_id="c2", kind="land")}
     continents = {
-        "x": Continent(continent_id="x", name="X", is_island=False,
-                       country_ids=["c1", "c2"], tile_count=2, bonus_armies=3),
+        "x": Continent(
+            continent_id="x",
+            name="X",
+            is_island=False,
+            country_ids=["c1", "c2"],
+            tile_count=2,
+            bonus_armies=3,
+        ),
     }
     m = Map(
-        map_id="m", params=MapGenParams(seed=1), width=2, height=1, tiles=[],
-        countries=countries, continents=continents, paths=paths,
+        map_id="m",
+        params=MapGenParams(seed=1),
+        width=2,
+        height=1,
+        tiles=[],
+        countries=countries,
+        continents=continents,
+        paths=paths,
     )
     now = datetime.now(UTC)
     game = Game(
-        game_id="g", map_id="m", name="t", config=cfg,
-        created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1",
+        game_id="g",
+        map_id="m",
+        name="t",
+        config=cfg,
+        created_at=now,
+        updated_at=now,
+        rng_seed=1,
+        owner_user_id="u1",
         outbreaks=Outbreaks(),
     )
     states = {

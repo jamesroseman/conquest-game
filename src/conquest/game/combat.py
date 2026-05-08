@@ -10,6 +10,7 @@ Resolution (open design question § Combat resolution — using Risk dice for v1
 If defender hits 0, attacker captures the country with `attacker_committed - attacker_losses`
 troops, leaving 1 troop on the source country's pre-attack remainder.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

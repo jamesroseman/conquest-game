@@ -5,6 +5,7 @@ Every model in this package inherits from `CamelModel`. This keeps Python idioma
 (`{"playerId": "..."}`). Construction accepts either form, matching how Firestore
 documents will deserialize on read.
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict

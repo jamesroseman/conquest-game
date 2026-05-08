@@ -12,6 +12,7 @@ In-game flow:
     apply_action(...)                 → 6 in-game action types
     end_turn(...)                     → advances seat; runs virus phase at round-end
 """
+
 from __future__ import annotations
 
 import secrets
@@ -80,9 +81,7 @@ class GameService:
         seed: int | None = None,
     ) -> Game:
         if not MIN_PLAYERS <= max_players <= MAX_PLAYERS:
-            raise InvalidAction(
-                f"max_players must be between {MIN_PLAYERS} and {MAX_PLAYERS}"
-            )
+            raise InvalidAction(f"max_players must be between {MIN_PLAYERS} and {MAX_PLAYERS}")
         # Enforce per-user concurrent-active-games cap.
         active = self._count_active_games_for_user(owner_user_id)
         if active >= self._max_active_games_per_user:
@@ -175,9 +174,7 @@ class GameService:
         """
         game = self._must_get_game(game_id)
         if game.status != "lobby":
-            raise GameNotStartable(
-                "game already started; use abandon_game to hand the seat to AI"
-            )
+            raise GameNotStartable("game already started; use abandon_game to hand the seat to AI")
         if game.owner_user_id == user_id:
             raise InvalidAction("the game owner cannot leave their own game; remove it instead")
         target = next(
@@ -239,15 +236,14 @@ class GameService:
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         self._append_event(
-            game_id, "place_reinforcements",  # nearest existing event type for v1; future: dedicated `abandon`
+            game_id,
+            "place_reinforcements",  # nearest existing event type for v1; future: dedicated `abandon`
             actor=target.player_id,
             payload={"abandoned_by": user_id, "archetype": archetype},
         )
         return snapshot
 
-    def remove_seat(
-        self, *, game_id: str, owner_user_id: str, target_player_id: str
-    ) -> Game:
+    def remove_seat(self, *, game_id: str, owner_user_id: str, target_player_id: str) -> Game:
         game = self._must_get_game(game_id)
         self._require_owner(game, owner_user_id)
         if game.status != "lobby":
@@ -295,7 +291,9 @@ class GameService:
         for p in snapshot.players.values():
             p.troops_remaining_to_place = snapshot.game.config.starting_troops_per_player
         self._repo.save_snapshot(snapshot)
-        self._append_event(game_id, "game_started", actor=owner_user_id, payload={"map_id": m.map_id})
+        self._append_event(
+            game_id, "game_started", actor=owner_user_id, payload={"map_id": m.map_id}
+        )
         return snapshot
 
     # --- Setup actions --------------------------------------------------------
@@ -314,16 +312,28 @@ class GameService:
         # Map game.status → setup phase that's allowed.
         if snapshot.game.setup.phase == "troops" and isinstance(action, PlaceTroop):
             setup_engine.place_troop(snapshot, actor.player_id, action)
-            self._append_event(game_id, "place_troop", actor=actor.player_id,
-                               payload={"country_id": action.country_id})
+            self._append_event(
+                game_id,
+                "place_troop",
+                actor=actor.player_id,
+                payload={"country_id": action.country_id},
+            )
         elif snapshot.game.setup.phase == "researchers" and isinstance(action, PlaceResearcher):
             setup_engine.place_researcher(snapshot, actor.player_id, action)
-            self._append_event(game_id, "place_researcher", actor=actor.player_id,
-                               payload={"country_id": action.country_id})
+            self._append_event(
+                game_id,
+                "place_researcher",
+                actor=actor.player_id,
+                payload={"country_id": action.country_id},
+            )
         elif snapshot.game.setup.phase == "capitals" and isinstance(action, PlaceCapital):
             setup_engine.place_capital(snapshot, actor.player_id, action)
-            self._append_event(game_id, "place_capital", actor=actor.player_id,
-                               payload={"country_id": action.country_id})
+            self._append_event(
+                game_id,
+                "place_capital",
+                actor=actor.player_id,
+                payload={"country_id": action.country_id},
+            )
         else:
             raise InvalidAction(
                 f"action {type(action).__name__} not allowed in setup phase {snapshot.game.setup.phase}"
@@ -345,7 +355,9 @@ class GameService:
     def _drain_ai_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
         """Run consecutive AI setup placements until a human seat is up or setup is done."""
         # Bound to avoid runaway in pathological configs (e.g., all-AI).
-        for _ in range(snapshot.game.player_count * snapshot.game.config.starting_troops_per_player + 50):
+        for _ in range(
+            snapshot.game.player_count * snapshot.game.config.starting_troops_per_player + 50
+        ):
             took_step = run_ai_setup_step(snapshot, rng)
             if not took_step:
                 break
@@ -354,9 +366,7 @@ class GameService:
     def _auto_progress_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
         if snapshot.game.setup.phase == "disease_seed":
             seeded = setup_engine.seed_disease(snapshot, rng)
-            self._append_event(
-                snapshot.game.game_id, "seed_disease", payload={"countries": seeded}
-            )
+            self._append_event(snapshot.game.game_id, "seed_disease", payload={"countries": seeded})
             snapshot.game.status = "placing_researchers"
         elif snapshot.game.setup.phase == "researchers":
             snapshot.game.status = "placing_researchers"
@@ -364,8 +374,12 @@ class GameService:
             snapshot.game.status = "placing_capitals"
         elif snapshot.game.setup.phase == "done":
             turn_engine.begin_first_turn(snapshot)
-            self._append_event(snapshot.game.game_id, "turn_started",
-                               actor=snapshot.game.turn.active_player_id, payload={"round": 1})
+            self._append_event(
+                snapshot.game.game_id,
+                "turn_started",
+                actor=snapshot.game.turn.active_player_id,
+                payload={"round": 1},
+            )
         elif snapshot.game.setup.phase == "troops":
             snapshot.game.status = "placing_troops"
 
@@ -387,8 +401,9 @@ class GameService:
             snapshot.game.status = "ended"
             snapshot.game.ended_reason = "victory"
             snapshot.game.winner_player_id = winner
-        self._append_event(game_id, cast("str", action.type), actor=actor.player_id,
-                           payload=action.model_dump())
+        self._append_event(
+            game_id, cast("str", action.type), actor=actor.player_id, payload=action.model_dump()
+        )
         # If a human ended their turn (via end_turn handler) or this action eliminated other
         # players and the next active seat is AI, drain those AI turns now.
         if snapshot.game.status == "in_progress":
@@ -409,14 +424,20 @@ class GameService:
             self._append_event(game_id, "round_end_virus", payload=result.model_dump())
         if snapshot.game.status == "ended":
             self._append_event(
-                game_id, "game_ended",
-                payload={"reason": snapshot.game.ended_reason,
-                         "winner": snapshot.game.winner_player_id},
+                game_id,
+                "game_ended",
+                payload={
+                    "reason": snapshot.game.ended_reason,
+                    "winner": snapshot.game.winner_player_id,
+                },
             )
         else:
-            self._append_event(game_id, "turn_started",
-                               actor=snapshot.game.turn.active_player_id,
-                               payload={"round": snapshot.game.turn.round_number})
+            self._append_event(
+                game_id,
+                "turn_started",
+                actor=snapshot.game.turn.active_player_id,
+                payload={"round": snapshot.game.turn.round_number},
+            )
         # Drain AI seats following the now-ended human turn.
         if snapshot.game.status == "in_progress":
             run_ai_until_human(snapshot, rng)

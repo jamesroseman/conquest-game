@@ -1,4 +1,5 @@
 """Capital-conquest cascade."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -14,25 +15,60 @@ from conquest.models.snapshot import GameSnapshot
 
 def _three_player_snapshot() -> GameSnapshot:
     countries = {
-        f"c{i}": Country(country_id=f"c{i}", name=f"C{i}", continent_id="x",
-                         tiles=[(i, 0)], centroid=(i, 0))
+        f"c{i}": Country(
+            country_id=f"c{i}", name=f"C{i}", continent_id="x", tiles=[(i, 0)], centroid=(i, 0)
+        )
         for i in range(3)
     }
-    cont = Continent(continent_id="x", name="X", is_island=False,
-                     country_ids=list(countries.keys()), tile_count=3, bonus_armies=3)
-    m = Map(map_id="m", params=MapGenParams(seed=1), width=3, height=1, tiles=[],
-            countries=countries, continents={"x": cont}, paths={})
+    cont = Continent(
+        continent_id="x",
+        name="X",
+        is_island=False,
+        country_ids=list(countries.keys()),
+        tile_count=3,
+        bonus_armies=3,
+    )
+    m = Map(
+        map_id="m",
+        params=MapGenParams(seed=1),
+        width=3,
+        height=1,
+        tiles=[],
+        countries=countries,
+        continents={"x": cont},
+        paths={},
+    )
     now = datetime.now(UTC)
-    game = Game(game_id="g", map_id="m", name="t", config=GameConfig(),
-                created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1")
+    game = Game(
+        game_id="g",
+        map_id="m",
+        name="t",
+        config=GameConfig(),
+        created_at=now,
+        updated_at=now,
+        rng_seed=1,
+        owner_user_id="u1",
+    )
     players = {
-        f"p{i}": Player(player_id=f"p{i}", seat_order=i, color="#000", kind="human", user_id=f"u{i}",
-                        capital_country_id=f"c{i}", researcher_country_id=f"c{i}")
+        f"p{i}": Player(
+            player_id=f"p{i}",
+            seat_order=i,
+            color="#000",
+            kind="human",
+            user_id=f"u{i}",
+            capital_country_id=f"c{i}",
+            researcher_country_id=f"c{i}",
+        )
         for i in range(3)
     }
     states = {
-        f"c{i}": CountryState(country_id=f"c{i}", owner_player_id=f"p{i}", armies=5,
-                              is_capital_of=f"p{i}", has_researcher=f"p{i}")
+        f"c{i}": CountryState(
+            country_id=f"c{i}",
+            owner_player_id=f"p{i}",
+            armies=5,
+            is_capital_of=f"p{i}",
+            has_researcher=f"p{i}",
+        )
         for i in range(3)
     }
     return GameSnapshot(game=game, map=m, players=players, country_states=states)

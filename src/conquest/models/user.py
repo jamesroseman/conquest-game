@@ -1,4 +1,5 @@
 """User — authenticated identity. Distinct from Player (per-game participant)."""
+
 from __future__ import annotations
 
 from datetime import datetime

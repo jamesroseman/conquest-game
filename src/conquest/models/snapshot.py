@@ -2,6 +2,7 @@
 
 The pure rules engine operates on snapshots, never on Firestore directly.
 """
+
 from __future__ import annotations
 
 from pydantic import Field
@@ -38,7 +39,5 @@ class GameSnapshot(CamelModel):
 
     def countries_owned_by(self, player_id: str) -> list[str]:
         return [
-            c.country_id
-            for c in self.country_states.values()
-            if c.owner_player_id == player_id
+            c.country_id for c in self.country_states.values() if c.owner_player_id == player_id
         ]

@@ -1,4 +1,5 @@
 """Reinforcement calculation. See CLAUDE.md § Reinforcements."""
+
 from __future__ import annotations
 
 from collections import Counter

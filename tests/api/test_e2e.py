@@ -3,6 +3,7 @@
 Exercises both REST (auth) and GraphQL surfaces against a `TestClient`. Uses dev-login so
 no Google OAuth dance is required.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -57,8 +58,8 @@ def test_full_lobby_and_abandon_flow(client: TestClient) -> None:
         client,
         alice,
         'mutation { createGame(name: "E2E", maxPlayers: 4, isPublic: false) { '
-        '... on GameResult { game { gameId inviteCode playerCount } } '
-        '... on GameError { code message } } }',
+        "... on GameResult { game { gameId inviteCode playerCount } } "
+        "... on GameError { code message } } }",
     )
     g = create["data"]["createGame"]["game"]
     gid, ic = g["gameId"], g["inviteCode"]
@@ -143,9 +144,7 @@ def test_abandon_swaps_kind_to_ai() -> None:
     repo = InMemoryRepository()
     svc = GameService(repo)
     g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
-    svc.join_game(
-        game_id=g.game_id, user_id="u2", display_name="Bob", invite_code=g.invite_code
-    )
+    svc.join_game(game_id=g.game_id, user_id="u2", display_name="Bob", invite_code=g.invite_code)
     svc.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="medic")
     snap = svc.start_game(game_id=g.game_id, owner_user_id="u1")
     # Walk setup forward until status flips to in_progress, picking unclaimed countries.
@@ -161,12 +160,15 @@ def test_abandon_swaps_kind_to_ai() -> None:
         if seat_player.kind != "human":
             break  # AI auto-runs via the service
         if snap.game.setup.phase == "troops":
-            unclaimed = [
-                cid for cid, s in snap.country_states.items() if s.owner_player_id is None
-            ]
-            target = unclaimed[0] if unclaimed else next(
-                cid for cid, s in snap.country_states.items()
-                if s.owner_player_id == seat_player.player_id
+            unclaimed = [cid for cid, s in snap.country_states.items() if s.owner_player_id is None]
+            target = (
+                unclaimed[0]
+                if unclaimed
+                else next(
+                    cid
+                    for cid, s in snap.country_states.items()
+                    if s.owner_player_id == seat_player.player_id
+                )
             )
             uid = "u1" if seat_player.user_id == "u1" else "u2"
             snap = svc.apply_setup_action(
@@ -176,7 +178,8 @@ def test_abandon_swaps_kind_to_ai() -> None:
             )
         elif snap.game.setup.phase == "researchers":
             owned = next(
-                cid for cid, s in snap.country_states.items()
+                cid
+                for cid, s in snap.country_states.items()
                 if s.owner_player_id == seat_player.player_id
             )
             snap = svc.apply_setup_action(
@@ -186,7 +189,8 @@ def test_abandon_swaps_kind_to_ai() -> None:
             )
         elif snap.game.setup.phase == "capitals":
             owned = next(
-                cid for cid, s in snap.country_states.items()
+                cid
+                for cid, s in snap.country_states.items()
                 if s.owner_player_id == seat_player.player_id
             )
             snap = svc.apply_setup_action(

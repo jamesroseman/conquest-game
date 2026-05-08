@@ -1,4 +1,5 @@
 """Game root metadata. See CLAUDE.md § Firestore data model."""
+
 from __future__ import annotations
 
 from datetime import datetime

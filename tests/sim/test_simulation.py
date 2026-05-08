@@ -1,4 +1,5 @@
 """Smoke tests for the simulation harness."""
+
 from __future__ import annotations
 
 import pytest

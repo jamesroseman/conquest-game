@@ -4,6 +4,7 @@ Mutations return a `MutationResult` union of `{Success-payload, GameError}` so c
 discriminate without try/except. v0.1 unions are intentionally simple; the spec allows a
 richer per-mutation error union later.
 """
+
 from __future__ import annotations
 
 import functools
@@ -99,8 +100,7 @@ class Query:
             return GameStateView(
                 game=Game.from_model(game),
                 players=[
-                    Player.from_model(p)
-                    for p in _ctx(info).repo.get_players(game_id).values()
+                    Player.from_model(p) for p in _ctx(info).repo.get_players(game_id).values()
                 ],
                 country_states=[],
                 map=None,
@@ -125,12 +125,8 @@ class GameStateResult:
     state: GameStateView
 
 
-CreateGameResult = Annotated[
-    GameResult | GameError, strawberry.union("CreateGameResult")
-]
-GameMutationResult = Annotated[
-    GameResult | GameError, strawberry.union("GameMutationResult")
-]
+CreateGameResult = Annotated[GameResult | GameError, strawberry.union("CreateGameResult")]
+GameMutationResult = Annotated[GameResult | GameError, strawberry.union("GameMutationResult")]
 StateMutationResult = Annotated[
     GameStateResult | GameError, strawberry.union("StateMutationResult")
 ]
@@ -206,9 +202,7 @@ class Mutation:
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
-    def remove_seat(
-        self, info: Info, game_id: str, target_player_id: str
-    ) -> GameMutationResult:
+    def remove_seat(self, info: Info, game_id: str, target_player_id: str) -> GameMutationResult:
         ctx = _ctx(info)
         user = ctx.require_user()
         game = ctx.games.remove_seat(
@@ -236,7 +230,9 @@ class Mutation:
         ctx = _ctx(info)
         user = ctx.require_user()
         snap = ctx.games.abandon_game(
-            game_id=game_id, user_id=user.user_id, archetype=archetype  # type: ignore[arg-type]
+            game_id=game_id,
+            user_id=user.user_id,
+            archetype=archetype,  # type: ignore[arg-type]
         )
         return GameStateResult(state=GameStateView.from_snapshot(snap))
 
@@ -252,23 +248,17 @@ class Mutation:
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
-    def place_setup_troop(
-        self, info: Info, game_id: str, country_id: str
-    ) -> StateMutationResult:
+    def place_setup_troop(self, info: Info, game_id: str, country_id: str) -> StateMutationResult:
         return self._setup_action(info, game_id, PlaceTroop(country_id=country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
-    def place_researcher(
-        self, info: Info, game_id: str, country_id: str
-    ) -> StateMutationResult:
+    def place_researcher(self, info: Info, game_id: str, country_id: str) -> StateMutationResult:
         return self._setup_action(info, game_id, PlaceResearcher(country_id=country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
-    def place_capital(
-        self, info: Info, game_id: str, country_id: str
-    ) -> StateMutationResult:
+    def place_capital(self, info: Info, game_id: str, country_id: str) -> StateMutationResult:
         return self._setup_action(info, game_id, PlaceCapital(country_id=country_id))
 
     # --- In-game actions ---
@@ -286,9 +276,7 @@ class Mutation:
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
-    def move_researcher(
-        self, info: Info, game_id: str, to_country_id: str
-    ) -> StateMutationResult:
+    def move_researcher(self, info: Info, game_id: str, to_country_id: str) -> StateMutationResult:
         return self._in_game(info, game_id, MoveResearcherAdjacent(to_country_id=to_country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)

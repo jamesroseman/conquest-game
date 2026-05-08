@@ -1,4 +1,5 @@
 """AI policy + runner sanity tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -12,9 +13,18 @@ from conquest.services.game_service import GameService
 
 def test_all_twelve_archetypes_registered() -> None:
     expected = {
-        "aggressor", "turtle", "medic", "opportunist", "expansionist",
-        "consolidator", "saboteur", "kingmaker", "doomsayer", "isolationist",
-        "bandwagon", "chaos",
+        "aggressor",
+        "turtle",
+        "medic",
+        "opportunist",
+        "expansionist",
+        "consolidator",
+        "saboteur",
+        "kingmaker",
+        "doomsayer",
+        "isolationist",
+        "bandwagon",
+        "chaos",
     }
     assert set(ARCHETYPES) == expected
 
@@ -35,6 +45,7 @@ def test_ai_drains_setup_after_human_placement() -> None:
     # Pick an unclaimed country and place as the human (seat 0).
     target = next(iter(snap.map.countries))
     from conquest.models.action import PlaceTroop
+
     snap2 = svc.apply_setup_action(
         game_id=g.game_id,
         actor_user_id="u1",

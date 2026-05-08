@@ -1,4 +1,5 @@
 """Virus phase result types."""
+
 from __future__ import annotations
 
 from pydantic import Field

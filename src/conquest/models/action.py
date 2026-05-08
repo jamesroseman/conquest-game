@@ -1,4 +1,5 @@
 """Action intents. See CLAUDE.md § Player turn — N actions."""
+
 from __future__ import annotations
 
 from typing import Literal

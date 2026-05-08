@@ -1,4 +1,5 @@
 """Lobby flow: create, join, AI seats, start."""
+
 from __future__ import annotations
 
 import pytest
@@ -8,9 +9,7 @@ from conquest.services.game_service import GameService
 
 
 def test_create_game_owner_auto_joins(game_service: GameService) -> None:
-    g = game_service.create_game(
-        owner_user_id="u1", owner_display_name="Alice", seed=1
-    )
+    g = game_service.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
     assert g.status == "lobby"
     assert g.is_joinable
     assert g.player_count == 1
@@ -18,9 +17,7 @@ def test_create_game_owner_auto_joins(game_service: GameService) -> None:
 
 
 def test_join_with_invite_code(game_service: GameService) -> None:
-    g = game_service.create_game(
-        owner_user_id="u1", owner_display_name="Alice", seed=1
-    )
+    g = game_service.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
     g2 = game_service.join_game(
         game_id=g.game_id, user_id="u2", display_name="Bob", invite_code=g.invite_code
     )

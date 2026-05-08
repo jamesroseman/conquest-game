@@ -4,6 +4,7 @@ Mirrors the Firestore document model: top-level `users`, `maps`, `games`, plus p
 `players`, `country_states`, and `events` collections. The Firestore implementation will
 implement the same `Repository` protocol.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -117,9 +118,7 @@ class InMemoryRepository:
     def put_country_state(self, game_id: str, state: CountryState) -> None:
         self._states.setdefault(game_id, {})[state.country_id] = state
 
-    def put_country_states(
-        self, game_id: str, states: dict[str, CountryState]
-    ) -> None:
+    def put_country_states(self, game_id: str, states: dict[str, CountryState]) -> None:
         self._states[game_id] = dict(states)
 
     # events ----------------------------------------------------------------

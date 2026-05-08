@@ -9,6 +9,7 @@ Phases (in order):
 When `capitals` finishes, the active player flips to seat 0 and the turn state machine takes
 over with `phase="reinforcements"`.
 """
+
 from __future__ import annotations
 
 from conquest.game.errors import (
@@ -92,7 +93,8 @@ def seed_disease(snapshot: GameSnapshot, rng: SeededRNG) -> list[str]:
     seeded: list[str] = []
     two_cube = pool[: cfg.setup_disease_2cube_count]
     one_cube = pool[
-        cfg.setup_disease_2cube_count : cfg.setup_disease_2cube_count + cfg.setup_disease_1cube_count
+        cfg.setup_disease_2cube_count : cfg.setup_disease_2cube_count
+        + cfg.setup_disease_1cube_count
     ]
     for cid in two_cube:
         s = snapshot.country_states[cid]
@@ -107,9 +109,7 @@ def seed_disease(snapshot: GameSnapshot, rng: SeededRNG) -> list[str]:
     return seeded
 
 
-def place_researcher(
-    snapshot: GameSnapshot, actor_id: str, action: PlaceResearcher
-) -> None:
+def place_researcher(snapshot: GameSnapshot, actor_id: str, action: PlaceResearcher) -> None:
     _require_setup_phase(snapshot, "researchers")
     _require_active_seat(snapshot, actor_id)
     actor = snapshot.players[actor_id]
@@ -137,9 +137,7 @@ def place_capital(snapshot: GameSnapshot, actor_id: str, action: PlaceCapital) -
     _advance_setup_seat_after_unique(snapshot, attr="capital_country_id", next_phase="done")
 
 
-def _advance_setup_seat_after_unique(
-    snapshot: GameSnapshot, *, attr: str, next_phase: str
-) -> None:
+def _advance_setup_seat_after_unique(snapshot: GameSnapshot, *, attr: str, next_phase: str) -> None:
     players = sorted(snapshot.players.values(), key=lambda p: p.seat_order)
     seat = snapshot.game.setup.active_seat_order
     for _ in range(len(players)):

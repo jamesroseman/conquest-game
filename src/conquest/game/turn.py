@@ -3,6 +3,7 @@
 A round = pass through all non-eliminated players in seat order, then virus phase.
 A turn = one player's reinforcements sub-phase + actions sub-phase, ending with `end_turn`.
 """
+
 from __future__ import annotations
 
 from conquest.game.elimination import check_win_condition
@@ -41,7 +42,9 @@ def _start_turn(snapshot: GameSnapshot) -> None:
     placed_to_capital = apply_capital_bonus(snapshot, pid)
     snapshot.game.turn.reinforcements_to_place = max(0, total - placed_to_capital)
     snapshot.game.turn.actions_remaining = cfg.actions_per_turn
-    snapshot.game.turn.phase = "reinforcements" if snapshot.game.turn.reinforcements_to_place > 0 else "actions"
+    snapshot.game.turn.phase = (
+        "reinforcements" if snapshot.game.turn.reinforcements_to_place > 0 else "actions"
+    )
 
 
 def end_turn(snapshot: GameSnapshot, actor_id: str, rng: SeededRNG) -> VirusPhaseResult | None:

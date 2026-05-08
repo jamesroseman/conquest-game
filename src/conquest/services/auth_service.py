@@ -1,4 +1,5 @@
 """Auth service. Verifies Google ID tokens, upserts users, mints Conquest JWTs."""
+
 from __future__ import annotations
 
 import uuid
@@ -40,14 +41,8 @@ class AuthService:
             display_name=display_name,
         )
 
-    def _upsert_and_mint(
-        self, *, user_id: str, email: str | None, display_name: str
-    ) -> AuthResult:
-        existing = (
-            self._repo.get_user_by_email(email)
-            if email
-            else self._repo.get_user(user_id)
-        )
+    def _upsert_and_mint(self, *, user_id: str, email: str | None, display_name: str) -> AuthResult:
+        existing = self._repo.get_user_by_email(email) if email else self._repo.get_user(user_id)
         now = datetime.now(UTC)
         if existing:
             existing.last_login_at = now
@@ -63,9 +58,7 @@ class AuthService:
                 last_login_at=now,
             )
             self._repo.upsert_user(user)
-        token = mint_jwt(
-            config=self._config, user_id=user.user_id, display_name=user.display_name
-        )
+        token = mint_jwt(config=self._config, user_id=user.user_id, display_name=user.display_name)
         return AuthResult(user=user, token=token)
 
     def user_from_token(self, token: str) -> User | None:

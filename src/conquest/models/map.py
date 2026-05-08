@@ -1,4 +1,5 @@
 """Map data structures. Maps are immutable once generated. See CLAUDE.md § Map generation."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -51,9 +52,7 @@ class MapGenParams(CamelModel):
         the same tile-size band. Hard-capped at `MAX_PLAYERS`.
         """
         if not MIN_PLAYERS <= player_count <= MAX_PLAYERS:
-            raise ValueError(
-                f"player_count must be between {MIN_PLAYERS} and {MAX_PLAYERS}"
-            )
+            raise ValueError(f"player_count must be between {MIN_PLAYERS} and {MAX_PLAYERS}")
         target_country_count = max(28, min(56, player_count * 7))
         avg_country_tiles = 15
         land_tiles = target_country_count * avg_country_tiles

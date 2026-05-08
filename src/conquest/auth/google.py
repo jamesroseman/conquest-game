@@ -12,6 +12,7 @@ When `CONQUEST_DEV_LOGIN=1` (default in v0.1) we skip signature verification so 
 development doesn't need a Google client ID. Production deployments set
 `CONQUEST_DEV_LOGIN=0` and `CONQUEST_GOOGLE_CLIENT_ID=...` via Secret Manager.
 """
+
 from __future__ import annotations
 
 import os
@@ -84,9 +85,7 @@ def _cache() -> _JwksCache:
     return _jwks_cache
 
 
-def verify_google_id_token(
-    token: str, *, expected_audience: str | None = None
-) -> dict[str, Any]:
+def verify_google_id_token(token: str, *, expected_audience: str | None = None) -> dict[str, Any]:
     """Verify a Google ID token and return the decoded claims.
 
     Set `CONQUEST_DEV_LOGIN=1` for unsigned dev tokens (default in v0.1).

@@ -1,4 +1,5 @@
 """GraphQL execution context — wires up the request, the auth user, and the services."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

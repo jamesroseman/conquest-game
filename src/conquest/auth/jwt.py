@@ -2,6 +2,7 @@
 
 A production deployment swaps the secret for a Secret Manager–backed key and rotates it.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta

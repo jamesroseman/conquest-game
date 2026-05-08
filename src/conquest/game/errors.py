@@ -1,4 +1,5 @@
 """Typed rule-violation errors. Raised by the pure rules engine."""
+
 from __future__ import annotations
 
 

@@ -1,4 +1,5 @@
 """Auth: dev login, JWT round-trip, token-derived user."""
+
 from __future__ import annotations
 
 from conquest.auth.jwt import mint_jwt, verify_jwt
@@ -21,6 +22,7 @@ def test_google_verification_requires_client_id_in_prod(monkeypatch) -> None:
     monkeypatch.setenv("CONQUEST_DEV_LOGIN", "0")
     monkeypatch.delenv("CONQUEST_GOOGLE_CLIENT_ID", raising=False)
     import pytest as _pt
+
     with _pt.raises(GoogleVerificationError):
         verify_google_id_token("any.token.value")
 

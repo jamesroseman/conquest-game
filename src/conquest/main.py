@@ -7,6 +7,7 @@ REST surface (kept small — these are auth + identity only):
 
 Everything else lives in GraphQL at `/graphql`.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,7 +41,9 @@ class AuthResponse(CamelModel):
     email: str | None = None
 
 
-def create_app(*, repo: InMemoryRepository | None = None, config: AppConfig | None = None) -> FastAPI:
+def create_app(
+    *, repo: InMemoryRepository | None = None, config: AppConfig | None = None
+) -> FastAPI:
     config = config or AppConfig.from_env()
     repo = repo or InMemoryRepository()
     auth = AuthService(repo, config)
@@ -73,8 +76,12 @@ def create_app(*, repo: InMemoryRepository | None = None, config: AppConfig | No
         user = auth.user_from_token(creds.credentials)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
-        return AuthResponse(token=creds.credentials, user_id=user.user_id,
-                            display_name=user.display_name, email=user.email)
+        return AuthResponse(
+            token=creds.credentials,
+            user_id=user.user_id,
+            display_name=user.display_name,
+            email=user.email,
+        )
 
     # --- GraphQL -----------------------------------------------------------
 

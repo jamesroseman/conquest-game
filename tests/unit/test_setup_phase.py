@@ -1,4 +1,5 @@
 """4-phase setup state machine."""
+
 from __future__ import annotations
 
 from conquest.game import setup as setup_engine
@@ -46,7 +47,9 @@ def test_setup_advances_through_all_phases(game_service: GameService) -> None:
         else:
             # After all countries claimed, place on a country owned by `actor`.
             owned = [
-                cid for cid, s in snap.country_states.items() if s.owner_player_id == actor.player_id
+                cid
+                for cid, s in snap.country_states.items()
+                if s.owner_player_id == actor.player_id
             ]
             target = owned[0]
         setup_engine.place_troop(snap, actor.player_id, PlaceTroop(country_id=target))
@@ -70,9 +73,7 @@ def test_setup_advances_through_all_phases(game_service: GameService) -> None:
     for seat_i in (0, 1):
         actor = players[seat_i]
         owned = next(
-            cid
-            for cid, s in snap.country_states.items()
-            if s.owner_player_id == actor.player_id
+            cid for cid, s in snap.country_states.items() if s.owner_player_id == actor.player_id
         )
         setup_engine.place_researcher(snap, actor.player_id, PlaceResearcher(country_id=owned))
     assert snap.game.setup.phase == "capitals"
@@ -81,9 +82,7 @@ def test_setup_advances_through_all_phases(game_service: GameService) -> None:
     for seat_i in (0, 1):
         actor = players[seat_i]
         owned = next(
-            cid
-            for cid, s in snap.country_states.items()
-            if s.owner_player_id == actor.player_id
+            cid for cid, s in snap.country_states.items() if s.owner_player_id == actor.player_id
         )
         setup_engine.place_capital(snap, actor.player_id, PlaceCapital(country_id=owned))
     assert snap.game.setup.phase == "done"

@@ -1,4 +1,5 @@
 """Per-game state attached to each country."""
+
 from __future__ import annotations
 
 from .base import CamelModel

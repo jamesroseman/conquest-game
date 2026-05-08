@@ -1,4 +1,5 @@
 """Seeded RNG. All randomness in the game flows through this."""
+
 from __future__ import annotations
 
 import random

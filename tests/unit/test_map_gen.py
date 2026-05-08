@@ -1,4 +1,5 @@
 """Map generation invariants. See CLAUDE.md § Map generation."""
+
 from __future__ import annotations
 
 import pytest

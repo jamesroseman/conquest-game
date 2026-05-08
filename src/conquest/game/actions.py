@@ -3,6 +3,7 @@
 Pure: takes (snapshot, actor_id, action, rng), mutates snapshot, raises a `RuleError` subclass
 on invalid actions. The service layer wraps this in a transaction.
 """
+
 from __future__ import annotations
 
 from typing import cast
@@ -92,9 +93,7 @@ def apply_action(
 
 def _spend(snapshot: GameSnapshot, cost: int) -> None:
     if snapshot.game.turn.actions_remaining < cost:
-        raise NotEnoughActions(
-            f"need {cost}, have {snapshot.game.turn.actions_remaining}"
-        )
+        raise NotEnoughActions(f"need {cost}, have {snapshot.game.turn.actions_remaining}")
     snapshot.game.turn.actions_remaining -= cost
 
 
@@ -134,9 +133,7 @@ def _move_researcher_adjacent(
     _move_researcher_to(snapshot, actor_id, action.to_country_id)
 
 
-def _airdrop_researcher(
-    snapshot: GameSnapshot, actor_id: str, action: AirdropResearcher
-) -> None:
+def _airdrop_researcher(snapshot: GameSnapshot, actor_id: str, action: AirdropResearcher) -> None:
     if action.to_country_id not in snapshot.map.countries:
         raise InvalidAction(f"unknown country {action.to_country_id}")
     _move_researcher_to(snapshot, actor_id, action.to_country_id)
@@ -174,15 +171,11 @@ def _create_vaccine(snapshot: GameSnapshot, actor_id: str) -> None:
             if p.eliminated:
                 continue
             if p.researcher_country_id != target_id:
-                raise NotAllResearchersPresent(
-                    "all non-eliminated researchers must be co-located"
-                )
+                raise NotAllResearchersPresent("all non-eliminated researchers must be co-located")
     state.vaccinated = True
 
 
-def _attack(
-    snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRNG
-) -> None:
+def _attack(snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRNG) -> None:
     src = snapshot.country_states.get(action.from_country_id)
     dst = snapshot.country_states.get(action.to_country_id)
     if src is None or dst is None:
@@ -225,9 +218,7 @@ def _attack(
         src.armies += result.attacker_remaining
 
 
-def _move_troops(
-    snapshot: GameSnapshot, actor_id: str, action: MoveTroops
-) -> None:
+def _move_troops(snapshot: GameSnapshot, actor_id: str, action: MoveTroops) -> None:
     src = snapshot.country_states.get(action.from_country_id)
     dst = snapshot.country_states.get(action.to_country_id)
     if src is None or dst is None:

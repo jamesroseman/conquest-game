@@ -11,6 +11,7 @@ Pipeline (see CLAUDE.md § Map generation):
     8. Name everything deterministically.
     9. Emit Map.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -61,8 +62,15 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
     target_per_continent = _target_tile_counts(params)
 
     # Grow island first in strict isolation.
-    _grow_landmass(grid, centers[island_idx], island_idx, target_per_continent[island_idx],
-                   params, rng, isolated=True)
+    _grow_landmass(
+        grid,
+        centers[island_idx],
+        island_idx,
+        target_per_continent[island_idx],
+        params,
+        rng,
+        isolated=True,
+    )
 
     # Then the mainland continents.
     for i, center in enumerate(centers):
@@ -93,9 +101,7 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
     # original buffer guaranteed (we already enforced this during growth).
 
     # --- Step 5: partition into countries ---
-    continents_countries = _partition_into_countries(
-        grid, landmass_to_continent, params, rng
-    )
+    continents_countries = _partition_into_countries(grid, landmass_to_continent, params, rng)
 
     # Build Country / Continent objects with placeholder paths.
     countries: dict[str, Country] = {}
@@ -154,7 +160,8 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
             cid = tile_country.get((x, y))
             tiles.append(
                 Tile(
-                    x=x, y=y,
+                    x=x,
+                    y=y,
                     terrain="land" if cid is not None else "ocean",
                     country_id=cid,
                 )
@@ -301,9 +308,7 @@ def _adjacent_to_other_label(
     return False
 
 
-def _connected_landmasses(
-    grid: list[list[int]], w: int, h: int
-) -> list[list[tuple[int, int]]]:
+def _connected_landmasses(grid: list[list[int]], w: int, h: int) -> list[list[tuple[int, int]]]:
     """Return all 4-connected land regions (regardless of original label)."""
     seen = [[False] * h for _ in range(w)]
     regions: list[list[tuple[int, int]]] = []
@@ -502,7 +507,9 @@ def _compute_land_paths(
     out: dict[str, Path] = {}
     for i, p in enumerate(sorted(paths.values(), key=lambda p: (p.country_a_id, p.country_b_id))):
         pid = f"p_{i}"
-        out[pid] = Path(path_id=pid, country_a_id=p.country_a_id, country_b_id=p.country_b_id, kind="land")
+        out[pid] = Path(
+            path_id=pid, country_a_id=p.country_a_id, country_b_id=p.country_b_id, kind="land"
+        )
     return out
 
 
@@ -595,9 +602,7 @@ def _is_coastal(country: Country, tile_country: dict[tuple[int, int], str]) -> b
 # --- Continent bonuses --------------------------------------------------------------------------
 
 
-def _continent_bonuses(
-    sizes: list[int], total_land: int, total_pool: int = 12
-) -> list[int]:
+def _continent_bonuses(sizes: list[int], total_land: int, total_pool: int = 12) -> list[int]:
     """Proportional bonus, snapped to integer; minimum 1 per continent."""
     raw = [size / total_land * total_pool for size in sizes]
     snapped = [max(1, round(r)) for r in raw]

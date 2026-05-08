@@ -2,6 +2,7 @@
 
 Wire format is camelCase (GraphQL convention); we read from snake_case Pydantic attrs.
 """
+
 from __future__ import annotations
 
 import strawberry

@@ -1,4 +1,5 @@
 """Per-game tuning parameters. See CLAUDE.md § Game configuration."""
+
 from __future__ import annotations
 
 from typing import Literal
