@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from strawberry.fastapi import GraphQLRouter
 
@@ -50,6 +51,23 @@ def create_app(
     games = GameService(repo)
 
     app = FastAPI(title="Conquest API", version="0.1.0")
+
+    cors_origins = [
+        o.strip()
+        for o in os.environ.get(
+            "CONQUEST_CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173",
+        ).split(",")
+        if o.strip()
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     bearer = HTTPBearer(auto_error=False)
 
     def _to_response(token: str, user) -> AuthResponse:  # type: ignore[no-untyped-def]
