@@ -1,0 +1,36 @@
+"""Deterministic name pools for continents and countries."""
+from __future__ import annotations
+
+CONTINENT_NAMES = [
+    "Aurelia",
+    "Borealis",
+    "Cinderlands",
+    "Drakemarch",
+    "Eorlanthe",
+    "Faelyria",
+    "Gloamreach",
+    "Hesperia",
+]
+
+COUNTRY_NAMES = [
+    "Alderan",  "Brimwall", "Caladros", "Drennor",  "Elsmoor",  "Falkenheim",
+    "Galmoore", "Hadrian",  "Iskaval",  "Jorvik",   "Kaldoria", "Lyrnath",
+    "Maren",    "Norvald",  "Ostmark",  "Pellinor", "Quinmar",  "Rhydellan",
+    "Sarnath",  "Tovaria",  "Ulvarn",   "Veladine", "Wolfen",   "Xenwald",
+    "Ysmere",   "Zarrok",   "Aelwyn",   "Brakenmoor","Caerwen", "Dunhollow",
+    "Erdran",   "Fendmark", "Gilead",   "Hadwyn",   "Inverlock","Jendrik",
+    "Korelan",  "Lyssen",   "Marrowfen","Nyxhal",   "Ortmund",  "Pyrhane",
+    "Quoren",   "Rosmark",  "Sablefen", "Talvarn",  "Umbran",   "Velmoor",
+    "Wyrmrest", "Xanthe",   "Yolden",   "Zephwyn",  "Avenmar",  "Brindale",
+    "Carthen",  "Drasten",  "Edraith",  "Foronel",  "Grynhal",  "Halverd",
+    "Inwen",    "Jorvald",  "Kithren",  "Loranth",  "Mardrek",  "Norhaven",
+    "Othmar",   "Prendel",  "Quirath",  "Ranveld",  "Skerith",  "Tundwall",
+]
+
+
+def continent_name(index: int) -> str:
+    return CONTINENT_NAMES[index % len(CONTINENT_NAMES)]
+
+
+def country_name(index: int) -> str:
+    return COUNTRY_NAMES[index % len(COUNTRY_NAMES)]
