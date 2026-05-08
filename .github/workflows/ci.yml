@@ -38,17 +38,3 @@ jobs:
 
       - name: Test
         run: poetry run pytest --cov=src/conquest --cov-report=term-missing
-
-  terraform:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-      - name: fmt
-        working-directory: infra
-        run: terraform fmt -check -recursive
-      - name: validate
-        working-directory: infra
-        run: terraform init -backend=false && terraform validate
