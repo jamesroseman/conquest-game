@@ -1,6 +1,8 @@
 """Strawberry GraphQL types.
 
-Wire format is camelCase (GraphQL convention); we read from snake_case Pydantic attrs.
+Wire format is camelCase (the GraphQL convention). Strawberry auto-converts snake_case
+Python attribute names to camelCase GraphQL field names, so Python code stays Pythonic
+while clients see the canonical schema.
 """
 
 from __future__ import annotations
@@ -22,55 +24,55 @@ from conquest.models.user import User as UserModel
 
 @strawberry.type
 class User:
-    userId: str
+    user_id: str
     email: str | None
-    displayName: str
+    display_name: str
 
     @classmethod
     def from_model(cls, m: UserModel) -> User:
-        return cls(userId=m.user_id, email=m.email, displayName=m.display_name)
+        return cls(user_id=m.user_id, email=m.email, display_name=m.display_name)
 
 
 @strawberry.type
 class GameConfig:
-    actionsPerTurn: int
-    startingTroopsPerPlayer: int
-    outbreakLossThreshold: int
-    maxCubesPerCountry: int
-    reinforcementBase: int
-    reinforcementPerCountry: int
-    reinforcementCapitalBonus: int
-    continentBonusPool: int
-    winCondition: str
+    actions_per_turn: int
+    starting_troops_per_player: int
+    outbreak_loss_threshold: int
+    max_cubes_per_country: int
+    reinforcement_base: int
+    reinforcement_per_country: int
+    reinforcement_capital_bonus: int
+    continent_bonus_pool: int
+    win_condition: str
 
     @classmethod
     def from_model(cls, m: GameConfigModel) -> GameConfig:
         return cls(
-            actionsPerTurn=m.actions_per_turn,
-            startingTroopsPerPlayer=m.starting_troops_per_player,
-            outbreakLossThreshold=m.outbreak_loss_threshold,
-            maxCubesPerCountry=m.max_cubes_per_country,
-            reinforcementBase=m.reinforcement_base,
-            reinforcementPerCountry=m.reinforcement_per_country,
-            reinforcementCapitalBonus=m.reinforcement_capital_bonus,
-            continentBonusPool=m.continent_bonus_pool,
-            winCondition=m.win_condition,
+            actions_per_turn=m.actions_per_turn,
+            starting_troops_per_player=m.starting_troops_per_player,
+            outbreak_loss_threshold=m.outbreak_loss_threshold,
+            max_cubes_per_country=m.max_cubes_per_country,
+            reinforcement_base=m.reinforcement_base,
+            reinforcement_per_country=m.reinforcement_per_country,
+            reinforcement_capital_bonus=m.reinforcement_capital_bonus,
+            continent_bonus_pool=m.continent_bonus_pool,
+            win_condition=m.win_condition,
         )
 
 
 @strawberry.input
 class GameConfigInput:
-    actionsPerTurn: int | None = None
-    startingTroopsPerPlayer: int | None = None
-    outbreakLossThreshold: int | None = None
+    actions_per_turn: int | None = None
+    starting_troops_per_player: int | None = None
+    outbreak_loss_threshold: int | None = None
 
     def to_model(self) -> GameConfigModel:
         defaults = GameConfigModel()
         return GameConfigModel(
-            actions_per_turn=self.actionsPerTurn or defaults.actions_per_turn,
-            starting_troops_per_player=self.startingTroopsPerPlayer
+            actions_per_turn=self.actions_per_turn or defaults.actions_per_turn,
+            starting_troops_per_player=self.starting_troops_per_player
             or defaults.starting_troops_per_player,
-            outbreak_loss_threshold=self.outbreakLossThreshold or defaults.outbreak_loss_threshold,
+            outbreak_loss_threshold=self.outbreak_loss_threshold or defaults.outbreak_loss_threshold,
         )
 
 
@@ -79,11 +81,11 @@ class Tile:
     x: int
     y: int
     terrain: str
-    countryId: str | None
+    country_id: str | None
 
     @classmethod
     def from_model(cls, m: TileModel) -> Tile:
-        return cls(x=m.x, y=m.y, terrain=m.terrain, countryId=m.country_id)
+        return cls(x=m.x, y=m.y, terrain=m.terrain, country_id=m.country_id)
 
 
 @strawberry.type
@@ -94,68 +96,68 @@ class TileCoord:
 
 @strawberry.type
 class Path:
-    pathId: str
-    countryAId: str
-    countryBId: str
+    path_id: str
+    country_a_id: str
+    country_b_id: str
     kind: str
 
     @classmethod
     def from_model(cls, m: PathModel) -> Path:
         return cls(
-            pathId=m.path_id,
-            countryAId=m.country_a_id,
-            countryBId=m.country_b_id,
+            path_id=m.path_id,
+            country_a_id=m.country_a_id,
+            country_b_id=m.country_b_id,
             kind=m.kind,
         )
 
 
 @strawberry.type
 class Country:
-    countryId: str
+    country_id: str
     name: str
-    continentId: str
-    centroidX: float
-    centroidY: float
-    pathIds: list[str]
+    continent_id: str
+    centroid_x: float
+    centroid_y: float
+    path_ids: list[str]
     tiles: list[TileCoord]
 
     @classmethod
     def from_model(cls, m: CountryModel) -> Country:
         return cls(
-            countryId=m.country_id,
+            country_id=m.country_id,
             name=m.name,
-            continentId=m.continent_id,
-            centroidX=m.centroid[0],
-            centroidY=m.centroid[1],
-            pathIds=list(m.path_ids),
+            continent_id=m.continent_id,
+            centroid_x=m.centroid[0],
+            centroid_y=m.centroid[1],
+            path_ids=list(m.path_ids),
             tiles=[TileCoord(x=t[0], y=t[1]) for t in m.tiles],
         )
 
 
 @strawberry.type
 class Continent:
-    continentId: str
+    continent_id: str
     name: str
-    isIsland: bool
-    countryIds: list[str]
-    tileCount: int
-    bonusArmies: int
+    is_island: bool
+    country_ids: list[str]
+    tile_count: int
+    bonus_armies: int
 
     @classmethod
     def from_model(cls, m: ContinentModel) -> Continent:
         return cls(
-            continentId=m.continent_id,
+            continent_id=m.continent_id,
             name=m.name,
-            isIsland=m.is_island,
-            countryIds=list(m.country_ids),
-            tileCount=m.tile_count,
-            bonusArmies=m.bonus_armies,
+            is_island=m.is_island,
+            country_ids=list(m.country_ids),
+            tile_count=m.tile_count,
+            bonus_armies=m.bonus_armies,
         )
 
 
 @strawberry.type
 class Map:
-    mapId: str
+    map_id: str
     width: int
     height: int
     countries: list[Country]
@@ -166,7 +168,7 @@ class Map:
     @classmethod
     def from_model(cls, m: MapModel) -> Map:
         return cls(
-            mapId=m.map_id,
+            map_id=m.map_id,
             width=m.width,
             height=m.height,
             countries=[Country.from_model(c) for c in m.countries.values()],
@@ -178,125 +180,125 @@ class Map:
 
 @strawberry.type
 class CountryState:
-    countryId: str
-    ownerPlayerId: str | None
+    country_id: str
+    owner_player_id: str | None
     armies: int
-    diseaseCubes: int
+    disease_cubes: int
     vaccinated: bool
-    isCapitalOf: str | None
-    hasResearcher: str | None
+    is_capital_of: str | None
+    has_researcher: str | None
 
     @classmethod
     def from_model(cls, m: CountryStateModel) -> CountryState:
         return cls(
-            countryId=m.country_id,
-            ownerPlayerId=m.owner_player_id,
+            country_id=m.country_id,
+            owner_player_id=m.owner_player_id,
             armies=m.armies,
-            diseaseCubes=m.disease_cubes,
+            disease_cubes=m.disease_cubes,
             vaccinated=m.vaccinated,
-            isCapitalOf=m.is_capital_of,
-            hasResearcher=m.has_researcher,
+            is_capital_of=m.is_capital_of,
+            has_researcher=m.has_researcher,
         )
 
 
 @strawberry.type
 class Player:
-    playerId: str
-    seatOrder: int
+    player_id: str
+    seat_order: int
     color: str
     kind: str
-    userId: str | None
+    user_id: str | None
     archetype: str | None
     difficulty: str | None
-    troopsRemainingToPlace: int
-    researcherCountryId: str | None
-    capitalCountryId: str | None
+    troops_remaining_to_place: int
+    researcher_country_id: str | None
+    capital_country_id: str | None
     eliminated: bool
-    countriesOwned: int
-    totalArmies: int
+    countries_owned: int
+    total_armies: int
 
     @classmethod
     def from_model(cls, m: PlayerModel) -> Player:
         return cls(
-            playerId=m.player_id,
-            seatOrder=m.seat_order,
+            player_id=m.player_id,
+            seat_order=m.seat_order,
             color=m.color,
             kind=m.kind,
-            userId=m.user_id,
+            user_id=m.user_id,
             archetype=m.ai_config.archetype if m.ai_config else None,
             difficulty=m.ai_config.difficulty if m.ai_config else None,
-            troopsRemainingToPlace=m.troops_remaining_to_place,
-            researcherCountryId=m.researcher_country_id,
-            capitalCountryId=m.capital_country_id,
+            troops_remaining_to_place=m.troops_remaining_to_place,
+            researcher_country_id=m.researcher_country_id,
+            capital_country_id=m.capital_country_id,
             eliminated=m.eliminated,
-            countriesOwned=m.stats.countries_owned,
-            totalArmies=m.stats.total_armies,
+            countries_owned=m.stats.countries_owned,
+            total_armies=m.stats.total_armies,
         )
 
 
 @strawberry.type
 class TurnState:
-    activePlayerId: str | None
-    actionsRemaining: int
-    reinforcementsToPlace: int
-    turnNumber: int
-    roundNumber: int
+    active_player_id: str | None
+    actions_remaining: int
+    reinforcements_to_place: int
+    turn_number: int
+    round_number: int
     phase: str
 
 
 @strawberry.type
 class SetupState:
     phase: str
-    activeSeatOrder: int
+    active_seat_order: int
 
 
 @strawberry.type
 class Game:
-    gameId: str
+    game_id: str
     name: str
     status: str
-    isJoinable: bool
-    ownerUserId: str
-    minPlayers: int
-    maxPlayers: int
-    isPublic: bool
-    inviteCode: str | None
-    playerCount: int
-    mapId: str | None
+    is_joinable: bool
+    owner_user_id: str
+    min_players: int
+    max_players: int
+    is_public: bool
+    invite_code: str | None
+    player_count: int
+    map_id: str | None
     config: GameConfig
     setup: SetupState
     turn: TurnState
-    outbreakCount: int
-    winnerPlayerId: str | None
-    endedReason: str | None
+    outbreak_count: int
+    winner_player_id: str | None
+    ended_reason: str | None
 
     @classmethod
     def from_model(cls, m: GameModel) -> Game:
         return cls(
-            gameId=m.game_id,
+            game_id=m.game_id,
             name=m.name,
             status=m.status,
-            isJoinable=m.is_joinable,
-            ownerUserId=m.owner_user_id,
-            minPlayers=m.min_players,
-            maxPlayers=m.max_players,
-            isPublic=m.is_public,
-            inviteCode=m.invite_code,
-            playerCount=m.player_count,
-            mapId=m.map_id,
+            is_joinable=m.is_joinable,
+            owner_user_id=m.owner_user_id,
+            min_players=m.min_players,
+            max_players=m.max_players,
+            is_public=m.is_public,
+            invite_code=m.invite_code,
+            player_count=m.player_count,
+            map_id=m.map_id,
             config=GameConfig.from_model(m.config),
-            setup=SetupState(phase=m.setup.phase, activeSeatOrder=m.setup.active_seat_order),
+            setup=SetupState(phase=m.setup.phase, active_seat_order=m.setup.active_seat_order),
             turn=TurnState(
-                activePlayerId=m.turn.active_player_id,
-                actionsRemaining=m.turn.actions_remaining,
-                reinforcementsToPlace=m.turn.reinforcements_to_place,
-                turnNumber=m.turn.turn_number,
-                roundNumber=m.turn.round_number,
+                active_player_id=m.turn.active_player_id,
+                actions_remaining=m.turn.actions_remaining,
+                reinforcements_to_place=m.turn.reinforcements_to_place,
+                turn_number=m.turn.turn_number,
+                round_number=m.turn.round_number,
                 phase=m.turn.phase,
             ),
-            outbreakCount=m.outbreaks.count,
-            winnerPlayerId=m.winner_player_id,
-            endedReason=m.ended_reason,
+            outbreak_count=m.outbreaks.count,
+            winner_player_id=m.winner_player_id,
+            ended_reason=m.ended_reason,
         )
 
 
@@ -306,7 +308,7 @@ class GameStateView:
 
     game: Game
     players: list[Player]
-    countryStates: list[CountryState]
+    country_states: list[CountryState]
     map: Map | None
 
     @classmethod
@@ -314,7 +316,7 @@ class GameStateView:
         return cls(
             game=Game.from_model(snap.game),
             players=[Player.from_model(p) for p in snap.players.values()],
-            countryStates=[CountryState.from_model(s) for s in snap.country_states.values()],
+            country_states=[CountryState.from_model(s) for s in snap.country_states.values()],
             map=Map.from_model(snap.map),
         )
 
@@ -327,5 +329,5 @@ class GameError:
 
 @strawberry.input
 class TilePlacementInput:
-    countryId: str
+    country_id: str
     count: int

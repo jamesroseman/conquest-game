@@ -102,7 +102,7 @@ class Query:
                 players=[
                     Player.from_model(p) for p in _ctx(info).repo.get_players(game_id).values()
                 ],
-                countryStates=[],
+                country_states=[],
                 map=None,
             )
         return GameStateView.from_snapshot(snap)
@@ -249,17 +249,17 @@ class Mutation:
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def place_setup_troop(self, info: Info, game_id: str, country_id: str) -> StateMutationResult:
-        return self._setup_action(info, game_id, PlaceTroop(country_id=country_id))
+        return _setup_action(info, game_id, PlaceTroop(country_id=country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def place_researcher(self, info: Info, game_id: str, country_id: str) -> StateMutationResult:
-        return self._setup_action(info, game_id, PlaceResearcher(country_id=country_id))
+        return _setup_action(info, game_id, PlaceResearcher(country_id=country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def place_capital(self, info: Info, game_id: str, country_id: str) -> StateMutationResult:
-        return self._setup_action(info, game_id, PlaceCapital(country_id=country_id))
+        return _setup_action(info, game_id, PlaceCapital(country_id=country_id))
 
     # --- In-game actions ---
 
@@ -271,30 +271,30 @@ class Mutation:
         game_id: str,
         placements: list[TilePlacementInput],
     ) -> StateMutationResult:
-        action = PlaceReinforcements(placements=[(p.countryId, p.count) for p in placements])
-        return self._in_game(info, game_id, action)
+        action = PlaceReinforcements(placements=[(p.country_id, p.count) for p in placements])
+        return _in_game(info, game_id, action)
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def move_researcher(self, info: Info, game_id: str, to_country_id: str) -> StateMutationResult:
-        return self._in_game(info, game_id, MoveResearcherAdjacent(to_country_id=to_country_id))
+        return _in_game(info, game_id, MoveResearcherAdjacent(to_country_id=to_country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def airdrop_researcher(
         self, info: Info, game_id: str, to_country_id: str
     ) -> StateMutationResult:
-        return self._in_game(info, game_id, AirdropResearcher(to_country_id=to_country_id))
+        return _in_game(info, game_id, AirdropResearcher(to_country_id=to_country_id))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def cure(self, info: Info, game_id: str) -> StateMutationResult:
-        return self._in_game(info, game_id, Cure())
+        return _in_game(info, game_id, Cure())
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
     def create_vaccine(self, info: Info, game_id: str) -> StateMutationResult:
-        return self._in_game(info, game_id, CreateVaccine())
+        return _in_game(info, game_id, CreateVaccine())
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
@@ -306,7 +306,7 @@ class Mutation:
         to_country_id: str,
         armies: int,
     ) -> StateMutationResult:
-        return self._in_game(
+        return _in_game(
             info,
             game_id,
             Attack(from_country_id=from_country_id, to_country_id=to_country_id, armies=armies),
@@ -322,7 +322,7 @@ class Mutation:
         to_country_id: str,
         armies: int,
     ) -> StateMutationResult:
-        return self._in_game(
+        return _in_game(
             info,
             game_id,
             MoveTroops(from_country_id=from_country_id, to_country_id=to_country_id, armies=armies),
@@ -336,23 +336,30 @@ class Mutation:
         snap, _virus = ctx.games.end_turn(game_id=game_id, actor_user_id=user.user_id)
         return GameStateResult(state=GameStateView.from_snapshot(snap))
 
-    # --- helpers ---
 
-    def _setup_action(self, info: Info, game_id: str, action) -> StateMutationResult:  # type: ignore[no-untyped-def]
-        ctx = _ctx(info)
-        user = ctx.require_user()
-        snap = ctx.games.apply_setup_action(
-            game_id=game_id, actor_user_id=user.user_id, action=action
-        )
-        return GameStateResult(state=GameStateView.from_snapshot(snap))
+# --- Helpers (module-level, NOT methods) ---
+#
+# Strawberry passes `root=None` as the implicit `self` argument when resolving fields on
+# the root Query/Mutation type, so calling `self._setup_action(...)` on a resolver crashes
+# with `'NoneType' has no attribute ...`. Module-level helpers sidestep that entirely.
 
-    def _in_game(self, info: Info, game_id: str, action) -> StateMutationResult:  # type: ignore[no-untyped-def]
-        ctx = _ctx(info)
-        user = ctx.require_user()
-        snap = ctx.games.apply_in_game_action(
-            game_id=game_id, actor_user_id=user.user_id, action=action
-        )
-        return GameStateResult(state=GameStateView.from_snapshot(snap))
+
+def _setup_action(info: Info, game_id: str, action) -> StateMutationResult:  # type: ignore[no-untyped-def]
+    ctx = _ctx(info)
+    user = ctx.require_user()
+    snap = ctx.games.apply_setup_action(
+        game_id=game_id, actor_user_id=user.user_id, action=action
+    )
+    return GameStateResult(state=GameStateView.from_snapshot(snap))
+
+
+def _in_game(info: Info, game_id: str, action) -> StateMutationResult:  # type: ignore[no-untyped-def]
+    ctx = _ctx(info)
+    user = ctx.require_user()
+    snap = ctx.games.apply_in_game_action(
+        game_id=game_id, actor_user_id=user.user_id, action=action
+    )
+    return GameStateResult(state=GameStateView.from_snapshot(snap))
 
 
 schema = strawberry.Schema(Query, Mutation)
