@@ -65,6 +65,7 @@ class GameConfigInput:
     actions_per_turn: int | None = None
     starting_troops_per_player: int | None = None
     outbreak_loss_threshold: int | None = None
+    ai_action_delay_ms: int | None = None
 
     def to_model(self) -> GameConfigModel:
         defaults = GameConfigModel()
@@ -73,6 +74,12 @@ class GameConfigInput:
             starting_troops_per_player=self.starting_troops_per_player
             or defaults.starting_troops_per_player,
             outbreak_loss_threshold=self.outbreak_loss_threshold or defaults.outbreak_loss_threshold,
+            # 0 is a valid override (instant AI), so distinguish None from 0.
+            ai_action_delay_ms=(
+                self.ai_action_delay_ms
+                if self.ai_action_delay_ms is not None
+                else defaults.ai_action_delay_ms
+            ),
         )
 
 

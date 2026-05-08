@@ -16,12 +16,13 @@ In-game flow:
 from __future__ import annotations
 
 import secrets
+import time
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import cast
 
-from conquest.ai.runner import run_ai_setup_step, run_ai_until_human
+from conquest.ai.runner import run_ai_setup_step, run_ai_turn
 from conquest.game import setup as setup_engine
 from conquest.game import turn as turn_engine
 from conquest.game.actions import apply_action as apply_in_game_action
@@ -97,7 +98,10 @@ class GameService:
             game_id=game_id,
             map_id=None,  # generated at start_game once player count is known
             name=name or f"Game {game_id[2:8]}",
-            config=config or GameConfig(),
+            # Default live games to a half-second AI pause so bot turns play
+            # at a watchable cadence. Tests pass `config` explicitly to keep
+            # the model-level default (0) and run instantly.
+            config=config or GameConfig(ai_action_delay_ms=500),
             status="lobby",
             created_at=now,
             updated_at=now,
@@ -227,11 +231,6 @@ class GameService:
         # Keep `user_id` intact for audit; the AI runner only checks `kind`.
         rng = self._rng_for(snapshot)
         # If it's their turn right now, drain immediately.
-        if (
-            snapshot.game.status == "in_progress"
-            and snapshot.game.turn.active_player_id == target.player_id
-        ):
-            run_ai_until_human(snapshot, rng)
         snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
@@ -241,6 +240,11 @@ class GameService:
             actor=target.player_id,
             payload={"abandoned_by": user_id, "archetype": archetype},
         )
+        if (
+            snapshot.game.status == "in_progress"
+            and snapshot.game.turn.active_player_id == target.player_id
+        ):
+            self._pace_ai_turns(snapshot, rng)
         return snapshot
 
     def remove_seat(self, *, game_id: str, owner_user_id: str, target_player_id: str) -> Game:
@@ -342,18 +346,23 @@ class GameService:
         # Auto-progress through disease seeding (server-driven step) and the eventual
         # transition to in-progress.
         self._auto_progress_setup(snapshot, rng)
-        # Drain any AI seats that should be placing right now.
-        self._drain_ai_setup(snapshot, rng)
+        # Save the human action snapshot before the AI begins so polling
+        # clients can render the human placement immediately.
+        snapshot.game.updated_at = datetime.now(UTC)
+        snapshot.game.rng_cursor = rng.cursor
+        self._repo.save_snapshot(snapshot)
+        # Drain any AI seats that should be placing right now (paced by config).
+        self._pace_ai_setup(snapshot, rng)
         # If setup just finished and the first turn-active player is AI, run them too.
         if snapshot.game.status == "in_progress":
-            run_ai_until_human(snapshot, rng)
+            self._pace_ai_turns(snapshot, rng)
         snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         return snapshot
 
     def _drain_ai_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
-        """Run consecutive AI setup placements until a human seat is up or setup is done."""
+        """Sync drain (no pacing). Used by tests and the simulation harness."""
         # Bound to avoid runaway in pathological configs (e.g., all-AI).
         for _ in range(
             snapshot.game.player_count * snapshot.game.config.starting_troops_per_player + 50
@@ -404,13 +413,15 @@ class GameService:
         self._append_event(
             game_id, cast("str", action.type), actor=actor.player_id, payload=action.model_dump()
         )
-        # If a human ended their turn (via end_turn handler) or this action eliminated other
-        # players and the next active seat is AI, drain those AI turns now.
-        if snapshot.game.status == "in_progress":
-            run_ai_until_human(snapshot, rng)
+        # Save the human's action snapshot immediately so the client poll
+        # picks it up before the bot turns start playing.
         snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
+        # If a human ended their turn or this action eliminated other players
+        # and the next active seat is AI, drain those AI turns paced.
+        if snapshot.game.status == "in_progress":
+            self._pace_ai_turns(snapshot, rng)
         return snapshot
 
     def end_turn(
@@ -438,13 +449,65 @@ class GameService:
                 actor=snapshot.game.turn.active_player_id,
                 payload={"round": snapshot.game.turn.round_number},
             )
-        # Drain AI seats following the now-ended human turn.
-        if snapshot.game.status == "in_progress":
-            run_ai_until_human(snapshot, rng)
+        # Save the human-ended snapshot first so polling clients see the
+        # turn boundary immediately.
         snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
+        # Drain AI seats following the now-ended human turn (paced).
+        if snapshot.game.status == "in_progress":
+            self._pace_ai_turns(snapshot, rng)
         return snapshot, result
+
+    # --- AI pacing -----------------------------------------------------------
+    #
+    # The simulation harness drains AI turns synchronously (zero delay) — it
+    # cares about throughput, not feel. Live games go through this helper so
+    # each AI turn lands in its own snapshot save and the request thread
+    # sleeps between turns. Polling clients see the bots "play" one turn at
+    # a time; the human's perceived latency before they regain control is
+    # `ai_count * ai_action_delay_ms`, which feels deliberate rather than
+    # instant. ai_action_delay_ms == 0 retains the old test-fast behaviour.
+
+    def _pace_ai_turns(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
+        delay_s = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
+        guard = 0
+        max_iters = 100
+        while guard < max_iters:
+            guard += 1
+            if snapshot.game.status != "in_progress":
+                return
+            pid = snapshot.game.turn.active_player_id
+            if pid is None:
+                return
+            if snapshot.players[pid].kind != "ai":
+                return
+            if delay_s > 0:
+                time.sleep(delay_s)
+            run_ai_turn(snapshot, rng)
+            snapshot.game.updated_at = datetime.now(UTC)
+            snapshot.game.rng_cursor = rng.cursor
+            self._repo.save_snapshot(snapshot)
+
+    def _pace_ai_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
+        delay_s = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
+        # Use a short fraction of the per-turn delay for setup placements —
+        # placement is one tile per step and would feel sluggish at the full
+        # delay across 30+ tiles.
+        per_step_s = delay_s / 4
+        max_iters = (
+            snapshot.game.player_count * snapshot.game.config.starting_troops_per_player + 50
+        )
+        for _ in range(max_iters):
+            took_step = run_ai_setup_step(snapshot, rng)
+            if not took_step:
+                return
+            self._auto_progress_setup(snapshot, rng)
+            snapshot.game.updated_at = datetime.now(UTC)
+            snapshot.game.rng_cursor = rng.cursor
+            self._repo.save_snapshot(snapshot)
+            if per_step_s > 0:
+                time.sleep(per_step_s)
 
     # --- helpers --------------------------------------------------------------
 
