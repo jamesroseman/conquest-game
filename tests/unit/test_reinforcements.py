@@ -1,7 +1,7 @@
 """Reinforcement formula. See CLAUDE.md § Reinforcements."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from conquest.game.reinforcements import compute_reinforcements
 from conquest.models.country_state import CountryState
@@ -34,7 +34,7 @@ def _toy_snapshot() -> GameSnapshot:
         continents=continents,
         paths={},
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     game = Game(
         game_id="g1", map_id="m1", name="Test", config=cfg,
         created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1",

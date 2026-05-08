@@ -10,7 +10,7 @@ import time
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from conquest.ai.archetypes import policy_for
 from conquest.ai.runner import run_ai_setup_step, run_ai_turn
@@ -50,7 +50,7 @@ def build_simulation_snapshot(
     cfg = config or GameConfig()
     params = MapGenParams.for_player_count(seed=seed, player_count=len(archetypes))
     m = generate_map(params)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     game = Game(
         game_id=f"sim_{uuid.uuid4().hex[:8]}",
         map_id=m.map_id,
@@ -91,7 +91,20 @@ def run_simulation(
 ) -> GameOutcome:
     """Play one all-AI game to completion. Returns a structured outcome row."""
     t0 = time.perf_counter()
-    snap = build_simulation_snapshot(seed=seed, archetypes=archetypes, config=config)
+    try:
+        snap = build_simulation_snapshot(seed=seed, archetypes=archetypes, config=config)
+    except RuntimeError:
+        # Map-gen exhausted its retry budget for this seed/params combo; surface as a
+        # known terminal outcome rather than letting the harness crash.
+        return GameOutcome(
+            seed=seed,
+            archetypes=list(archetypes),
+            rounds_played=0,
+            winner_archetype=None,
+            ended_reason="map_gen_failed",
+            outbreaks=0,
+            elapsed_ms=(time.perf_counter() - t0) * 1000,
+        )
     rng = SeededRNG(seed)
 
     # Drive setup to completion via the same setup hooks used in production.

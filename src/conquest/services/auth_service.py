@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from conquest.auth.google import verify_google_id_token
 from conquest.auth.jwt import mint_jwt, verify_jwt
@@ -48,7 +48,7 @@ class AuthService:
             if email
             else self._repo.get_user(user_id)
         )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if existing:
             existing.last_login_at = now
             existing.display_name = display_name

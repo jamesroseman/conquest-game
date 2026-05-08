@@ -4,7 +4,7 @@ A production deployment swaps the secret for a Secret Manager–backed key and r
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt as pyjwt
@@ -13,7 +13,7 @@ from conquest.config import AppConfig
 
 
 def mint_jwt(*, config: AppConfig, user_id: str, display_name: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,

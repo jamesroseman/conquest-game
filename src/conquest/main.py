@@ -13,12 +13,12 @@ import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from conquest.models.base import CamelModel
 from strawberry.fastapi import GraphQLRouter
 
 from conquest.api.context import ConquestContext
 from conquest.api.schema import schema
 from conquest.config import AppConfig
+from conquest.models.base import CamelModel
 from conquest.repositories import InMemoryRepository
 from conquest.services.auth_service import AuthService
 from conquest.services.game_service import GameService
@@ -67,7 +67,7 @@ def create_app(*, repo: InMemoryRepository | None = None, config: AppConfig | No
         return _to_response(result.token, result.user)
 
     @app.get("/auth/me", response_model=AuthResponse)
-    def auth_me(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> AuthResponse:
+    def auth_me(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> AuthResponse:  # noqa: B008
         if creds is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing token")
         user = auth.user_from_token(creds.credentials)

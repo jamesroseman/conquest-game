@@ -87,4 +87,5 @@ def test_simulation_terminates_with_known_reason(
         "outbreak_limit",
         "max_rounds",
         "setup_failed",
+        "map_gen_failed",
     }

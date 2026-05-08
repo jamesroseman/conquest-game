@@ -7,7 +7,7 @@ richer per-mutation error union later.
 from __future__ import annotations
 
 import functools
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any
 
 import strawberry
 from strawberry.permission import BasePermission
@@ -84,12 +84,12 @@ _AUTH = [IsAuthenticated]
 @strawberry.type
 class Query:
     @strawberry.field(permission_classes=_AUTH)
-    def me(self, info: Info) -> Optional[User]:
+    def me(self, info: Info) -> User | None:
         ctx = _ctx(info)
         return User.from_model(ctx.user) if ctx.user else None
 
     @strawberry.field(permission_classes=_AUTH)
-    def game(self, info: Info, game_id: str) -> Optional[GameStateView]:
+    def game(self, info: Info, game_id: str) -> GameStateView | None:
         snap = _ctx(info).games.get_snapshot(game_id)
         if snap is None:
             game = _ctx(info).repo.get_game(game_id)
@@ -126,13 +126,13 @@ class GameStateResult:
 
 
 CreateGameResult = Annotated[
-    Union[GameResult, GameError], strawberry.union("CreateGameResult")
+    GameResult | GameError, strawberry.union("CreateGameResult")
 ]
 GameMutationResult = Annotated[
-    Union[GameResult, GameError], strawberry.union("GameMutationResult")
+    GameResult | GameError, strawberry.union("GameMutationResult")
 ]
 StateMutationResult = Annotated[
-    Union[GameStateResult, GameError], strawberry.union("StateMutationResult")
+    GameStateResult | GameError, strawberry.union("StateMutationResult")
 ]
 
 
@@ -148,11 +148,11 @@ class Mutation:
     def create_game(
         self,
         info: Info,
-        name: Optional[str] = None,
+        name: str | None = None,
         max_players: int = 6,
         is_public: bool = False,
-        config: Optional[GameConfigInput] = None,
-        seed: Optional[int] = None,
+        config: GameConfigInput | None = None,
+        seed: int | None = None,
     ) -> CreateGameResult:
         ctx = _ctx(info)
         user = ctx.require_user()
@@ -173,7 +173,7 @@ class Mutation:
         self,
         info: Info,
         game_id: str,
-        invite_code: Optional[str] = None,
+        invite_code: str | None = None,
     ) -> GameMutationResult:
         ctx = _ctx(info)
         user = ctx.require_user()

@@ -1,7 +1,7 @@
 """Capital-conquest cascade."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from conquest.game.elimination import check_win_condition, eliminate_player
 from conquest.models.country_state import CountryState
@@ -22,7 +22,7 @@ def _three_player_snapshot() -> GameSnapshot:
                      country_ids=list(countries.keys()), tile_count=3, bonus_armies=3)
     m = Map(map_id="m", params=MapGenParams(seed=1), width=3, height=1, tiles=[],
             countries=countries, continents={"x": cont}, paths={})
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     game = Game(game_id="g", map_id="m", name="t", config=GameConfig(),
                 created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1")
     players = {

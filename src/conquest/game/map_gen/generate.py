@@ -36,7 +36,7 @@ _NEIGHBORS_4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 def generate_map(params: MapGenParams) -> Map:
     """Generate a deterministic `Map` from `params`. Same params → byte-identical map."""
     last_err: Exception | None = None
-    for retry in range(8):
+    for retry in range(24):
         rng = SeededRNG(params.seed + retry * 7919)
         try:
             return _attempt(params, rng)
@@ -217,9 +217,11 @@ def _place_continent_centers(params: MapGenParams, rng: SeededRNG) -> list[tuple
             raise _MapGenRetry("could not place continent centers")
         x = rng.randint(border, w - border - 1)
         y = rng.randint(border, h - border - 1)
-        if all(_dist((x, y), c) >= min_sep for c in centers):
-            if _dist((x, y), centers[0]) >= min_sep + island_extra:
-                centers.append((x, y))
+        if (
+            all(_dist((x, y), c) >= min_sep for c in centers)
+            and _dist((x, y), centers[0]) >= min_sep + island_extra
+        ):
+            centers.append((x, y))
     return centers
 
 

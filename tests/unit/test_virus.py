@@ -1,8 +1,7 @@
 """End-of-round virus phase: casualties, spread, outbreaks."""
 from __future__ import annotations
 
-import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from conquest.game.rng import SeededRNG
 from conquest.game.virus import run_virus_phase
@@ -31,7 +30,7 @@ def _two_country_snapshot() -> GameSnapshot:
         map_id="m", params=MapGenParams(seed=1), width=2, height=1, tiles=[],
         countries=countries, continents=continents, paths=paths,
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     game = Game(
         game_id="g", map_id="m", name="t", config=cfg,
         created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1",

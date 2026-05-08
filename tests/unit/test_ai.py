@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from conquest.ai.archetypes import ARCHETYPES, policy_for
-from conquest.ai.runner import run_ai_setup_step, run_ai_turn
+from conquest.ai.runner import run_ai_setup_step
 from conquest.game.rng import SeededRNG
 from conquest.repositories import InMemoryRepository
 from conquest.services.game_service import GameService

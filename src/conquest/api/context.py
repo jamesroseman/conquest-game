@@ -22,7 +22,7 @@ class ConquestContext(BaseContext):
         config: AppConfig,
         auth: AuthService,
         games: GameService,
-        user: "User | None" = None,
+        user: User | None = None,
     ) -> None:
         super().__init__()
         self.repo = repo
@@ -31,7 +31,7 @@ class ConquestContext(BaseContext):
         self.games = games
         self.user = user
 
-    def require_user(self) -> "User":
+    def require_user(self) -> User:
         if self.user is None:
             raise PermissionError("authentication required")
         return self.user

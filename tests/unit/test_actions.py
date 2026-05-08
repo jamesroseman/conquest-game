@@ -1,7 +1,7 @@
 """In-game action validation + dispatch."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -40,7 +40,7 @@ def _two_country_in_progress() -> GameSnapshot:
                      country_ids=["c1", "c2"], tile_count=2, bonus_armies=3)
     m = Map(map_id="m", params=MapGenParams(seed=1), width=2, height=1, tiles=[],
             countries=countries, continents={"x": cont}, paths=paths)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     game = Game(
         game_id="g", map_id="m", name="t", config=cfg,
         created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1",

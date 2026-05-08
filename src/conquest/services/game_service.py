@@ -17,7 +17,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 
 from conquest.ai.runner import run_ai_setup_step, run_ai_until_human
@@ -91,7 +91,7 @@ class GameService:
                 f"({active}/{self._max_active_games_per_user}); finish or abandon a game first"
             )
         game_id = f"g_{uuid.uuid4().hex[:10]}"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rng_seed = seed if seed is not None else secrets.randbits(63)
         invite_code = secrets.token_urlsafe(6)
         game = Game(
@@ -163,7 +163,7 @@ class GameService:
         self._repo.put_player(game_id, ai_player)
         game.player_ids = [*game.player_ids, player_id]
         game.player_count = len(game.player_ids)
-        game.updated_at = datetime.now(timezone.utc)
+        game.updated_at = datetime.now(UTC)
         self._repo.put_game(game)
         return game
 
@@ -194,7 +194,7 @@ class GameService:
             p.color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
             self._repo.put_player(game_id, p)
         game.player_count = len(game.player_ids)
-        game.updated_at = datetime.now(timezone.utc)
+        game.updated_at = datetime.now(UTC)
         self._repo.put_game(game)
         return game
 
@@ -235,7 +235,7 @@ class GameService:
             and snapshot.game.turn.active_player_id == target.player_id
         ):
             run_ai_until_human(snapshot, rng)
-        snapshot.game.updated_at = datetime.now(timezone.utc)
+        snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         self._append_event(
@@ -263,7 +263,7 @@ class GameService:
             p.color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
             self._repo.put_player(game_id, p)
         game.player_count = len(game.player_ids)
-        game.updated_at = datetime.now(timezone.utc)
+        game.updated_at = datetime.now(UTC)
         self._repo.put_game(game)
         return game
 
@@ -286,7 +286,7 @@ class GameService:
         game.status = "placing_troops"
         game.setup = SetupState(phase="troops", active_seat_order=0)
         game.turn = TurnState()
-        game.updated_at = datetime.now(timezone.utc)
+        game.updated_at = datetime.now(UTC)
         self._repo.put_game(game)
 
         snapshot = self._load_snapshot(game_id)
@@ -337,7 +337,7 @@ class GameService:
         # If setup just finished and the first turn-active player is AI, run them too.
         if snapshot.game.status == "in_progress":
             run_ai_until_human(snapshot, rng)
-        snapshot.game.updated_at = datetime.now(timezone.utc)
+        snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         return snapshot
@@ -393,7 +393,7 @@ class GameService:
         # players and the next active seat is AI, drain those AI turns now.
         if snapshot.game.status == "in_progress":
             run_ai_until_human(snapshot, rng)
-        snapshot.game.updated_at = datetime.now(timezone.utc)
+        snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         return snapshot
@@ -420,7 +420,7 @@ class GameService:
         # Drain AI seats following the now-ended human turn.
         if snapshot.game.status == "in_progress":
             run_ai_until_human(snapshot, rng)
-        snapshot.game.updated_at = datetime.now(timezone.utc)
+        snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         return snapshot, result
@@ -479,7 +479,7 @@ class GameService:
         self._repo.put_player(game.game_id, player)
         game.player_ids = [*game.player_ids, player_id]
         game.player_count = len(game.player_ids)
-        game.updated_at = datetime.now(timezone.utc)
+        game.updated_at = datetime.now(UTC)
         self._repo.put_game(game)
         return player
 
@@ -523,7 +523,7 @@ class GameService:
             type=cast("str", event_type),  # narrowed at type-check; runtime is permissive
             actor_player_id=actor,
             payload=payload or {},
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         self._repo.append_event(game_id, event)
 

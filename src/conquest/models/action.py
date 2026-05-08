@@ -1,7 +1,7 @@
 """Action intents. See CLAUDE.md § Player turn — N actions."""
 from __future__ import annotations
 
-from typing import Literal, Union
+from typing import Literal
 
 from .base import CamelModel
 
@@ -71,15 +71,15 @@ class MoveTroops(CamelModel):
     armies: int
 
 
-Action = Union[
-    PlaceTroop,
-    PlaceResearcher,
-    PlaceCapital,
-    PlaceReinforcements,
-    MoveResearcherAdjacent,
-    AirdropResearcher,
-    Cure,
-    CreateVaccine,
-    Attack,
-    MoveTroops,
-]
+Action = (
+    PlaceTroop
+    | PlaceResearcher
+    | PlaceCapital
+    | PlaceReinforcements
+    | MoveResearcherAdjacent
+    | AirdropResearcher
+    | Cure
+    | CreateVaccine
+    | Attack
+    | MoveTroops
+)

@@ -29,7 +29,7 @@ class MapGenParams(CamelModel):
     ocean_border: int = 2
 
     @model_validator(mode="after")
-    def _validate_size(self) -> "MapGenParams":
+    def _validate_size(self) -> MapGenParams:
         if self.width > MAX_MAP_DIMENSION or self.height > MAX_MAP_DIMENSION:
             raise ValueError(
                 f"map dimensions exceed cap: {self.width}x{self.height} (max {MAX_MAP_DIMENSION})"
@@ -43,7 +43,7 @@ class MapGenParams(CamelModel):
         return self
 
     @classmethod
-    def for_player_count(cls, *, seed: int, player_count: int) -> "MapGenParams":
+    def for_player_count(cls, *, seed: int, player_count: int) -> MapGenParams:
         """Pick a map size and country count appropriate for a given player count.
 
         Aims for ~7 countries per player (Risk's 42-territory map across 6 players hits this),
