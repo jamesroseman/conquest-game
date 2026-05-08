@@ -28,6 +28,7 @@ from conquest.models.map import (
     Tile,
 )
 
+from .biomes import assign_biomes, assign_climates_from_centroids
 from .naming import continent_name, country_name
 
 # 4-neighbor offsets for grid adjacency.
@@ -153,7 +154,22 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
         countries[p.country_a_id].path_ids.append(p.path_id)
         countries[p.country_b_id].path_ids.append(p.path_id)
 
-    # --- Step 9: emit ---
+    # --- Step 8: per-continent climate + per-tile biome -----------------------
+    # Climate is picked from each continent's centroid latitude band (with a small
+    # RNG jitter) so the biome assigner can produce "this continent feels arctic /
+    # temperate / tropical" without the rules engine ever caring.
+    continent_centroids: dict[str, tuple[float, float]] = {}
+    for cont_idx, region in enumerate(landmass_to_continent):
+        cid = f"cont_{cont_idx}"
+        if region:
+            cx_c = sum(t[0] for t in region) / len(region)
+            cy_c = sum(t[1] for t in region) / len(region)
+        else:
+            cx_c, cy_c = width / 2, height / 2
+        continent_centroids[cid] = (cx_c, cy_c)
+    assign_climates_from_centroids(continents, continent_centroids, height, rng)
+
+    # --- Step 9: emit tile records (terrain only; biome is filled below) -----
     tiles: list[Tile] = []
     for x in range(width):
         for y in range(height):
@@ -164,8 +180,14 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
                     y=y,
                     terrain="land" if cid is not None else "ocean",
                     country_id=cid,
+                    biome="ocean",
                 )
             )
+
+    countries_continent = {
+        ctry.country_id: ctry.continent_id for ctry in countries.values()
+    }
+    assign_biomes(tiles, width, height, continents, countries_continent, rng)
 
     map_id = _hash_params(params)
     return Map(

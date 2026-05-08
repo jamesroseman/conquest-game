@@ -82,10 +82,11 @@ class Tile:
     y: int
     terrain: str
     country_id: str | None
+    biome: str
 
     @classmethod
     def from_model(cls, m: TileModel) -> Tile:
-        return cls(x=m.x, y=m.y, terrain=m.terrain, country_id=m.country_id)
+        return cls(x=m.x, y=m.y, terrain=m.terrain, country_id=m.country_id, biome=m.biome)
 
 
 @strawberry.type
@@ -142,6 +143,7 @@ class Continent:
     country_ids: list[str]
     tile_count: int
     bonus_armies: int
+    climate: str
 
     @classmethod
     def from_model(cls, m: ContinentModel) -> Continent:
@@ -152,6 +154,7 @@ class Continent:
             country_ids=list(m.country_ids),
             tile_count=m.tile_count,
             bonus_armies=m.bonus_armies,
+            climate=m.climate,
         )
 
 

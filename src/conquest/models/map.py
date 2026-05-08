@@ -69,6 +69,23 @@ class MapGenParams(CamelModel):
 
 Terrain = Literal["land", "ocean"]
 PathKind = Literal["land", "sea"]
+Climate = Literal["arctic", "temperate", "subtropical", "tropical"]
+Biome = Literal[
+    "ocean",
+    "coast",
+    "beach",
+    "grassland",
+    "forest",
+    "jungle",
+    "swamp",
+    "wetland",
+    "desert",
+    "savanna",
+    "boreal",
+    "tundra",
+    "mountain",
+    "snow",
+]
 
 
 class Tile(CamelModel):
@@ -76,6 +93,7 @@ class Tile(CamelModel):
     y: int
     terrain: Terrain
     country_id: str | None = None
+    biome: Biome = "ocean"
 
 
 class Path(CamelModel):
@@ -101,6 +119,7 @@ class Continent(CamelModel):
     country_ids: list[str]
     tile_count: int
     bonus_armies: int
+    climate: Climate = "temperate"
 
 
 class Map(CamelModel):
