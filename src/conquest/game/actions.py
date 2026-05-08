@@ -46,7 +46,7 @@ def apply_action(
     """Validate and apply a single in-turn action. Raises `RuleError` subclasses."""
     if snapshot.game.status != "in_progress":
         raise WrongPhase(f"game status is {snapshot.game.status}")
-    if snapshot.game.turn.activePlayerId != actor_id:
+    if snapshot.game.turn.active_player_id != actor_id:
         raise NotYourTurn("not your turn")
 
     actor = snapshot.players[actor_id]
@@ -58,7 +58,7 @@ def apply_action(
         if not isinstance(action, PlaceReinforcements):
             raise ReinforcementsNotPlaced("place reinforcements before spending actions")
         _apply_place_reinforcements(snapshot, actor_id, action)
-        if snapshot.game.turn.reinforcementsToPlace == 0:
+        if snapshot.game.turn.reinforcements_to_place == 0:
             snapshot.game.turn.phase = "actions"
         return
 
@@ -91,11 +91,11 @@ def apply_action(
 
 
 def _spend(snapshot: GameSnapshot, cost: int) -> None:
-    if snapshot.game.turn.actionsRemaining < cost:
+    if snapshot.game.turn.actions_remaining < cost:
         raise NotEnoughActions(
-            f"need {cost}, have {snapshot.game.turn.actionsRemaining}"
+            f"need {cost}, have {snapshot.game.turn.actions_remaining}"
         )
-    snapshot.game.turn.actionsRemaining -= cost
+    snapshot.game.turn.actions_remaining -= cost
 
 
 def _apply_place_reinforcements(
@@ -104,20 +104,20 @@ def _apply_place_reinforcements(
     total = sum(count for _, count in action.placements)
     if total <= 0:
         raise InvalidAction("must place at least one reinforcement")
-    if total > snapshot.game.turn.reinforcementsToPlace:
+    if total > snapshot.game.turn.reinforcements_to_place:
         raise InvalidAction(
-            f"placing {total} but only {snapshot.game.turn.reinforcementsToPlace} reinforcements available"
+            f"placing {total} but only {snapshot.game.turn.reinforcements_to_place} reinforcements available"
         )
     for cid, count in action.placements:
         if count <= 0:
             raise InvalidAction("reinforcement count must be positive")
-        state = snapshot.countryStates.get(cid)
+        state = snapshot.country_states.get(cid)
         if state is None:
             raise InvalidAction(f"unknown country {cid}")
-        if state.ownerPlayerId != actor_id:
+        if state.owner_player_id != actor_id:
             raise NotYourCountry("can only place reinforcements on your countries")
         state.armies += count
-    snapshot.game.turn.reinforcementsToPlace -= total
+    snapshot.game.turn.reinforcements_to_place -= total
     recompute_player_stats(snapshot)
 
 
@@ -125,55 +125,55 @@ def _move_researcher_adjacent(
     snapshot: GameSnapshot, actor_id: str, action: MoveResearcherAdjacent
 ) -> None:
     actor = snapshot.players[actor_id]
-    if actor.researcherCountryId is None:
+    if actor.researcher_country_id is None:
         raise InvalidAction("no researcher placed")
-    if action.toCountryId not in snapshot.map.countries:
-        raise InvalidAction(f"unknown country {action.toCountryId}")
-    if action.toCountryId not in snapshot.map.neighbors(actor.researcherCountryId):
+    if action.to_country_id not in snapshot.map.countries:
+        raise InvalidAction(f"unknown country {action.to_country_id}")
+    if action.to_country_id not in snapshot.map.neighbors(actor.researcher_country_id):
         raise NotAdjacent("destination is not adjacent to current researcher country")
-    _move_researcher_to(snapshot, actor_id, action.toCountryId)
+    _move_researcher_to(snapshot, actor_id, action.to_country_id)
 
 
 def _airdrop_researcher(
     snapshot: GameSnapshot, actor_id: str, action: AirdropResearcher
 ) -> None:
-    if action.toCountryId not in snapshot.map.countries:
-        raise InvalidAction(f"unknown country {action.toCountryId}")
-    _move_researcher_to(snapshot, actor_id, action.toCountryId)
+    if action.to_country_id not in snapshot.map.countries:
+        raise InvalidAction(f"unknown country {action.to_country_id}")
+    _move_researcher_to(snapshot, actor_id, action.to_country_id)
 
 
 def _move_researcher_to(snapshot: GameSnapshot, actor_id: str, country_id: str) -> None:
     actor = snapshot.players[actor_id]
-    if actor.researcherCountryId is not None:
-        prev = snapshot.countryStates[actor.researcherCountryId]
-        if prev.hasResearcher == actor_id:
-            prev.hasResearcher = None
-    actor.researcherCountryId = country_id
-    snapshot.countryStates[country_id].hasResearcher = actor_id
+    if actor.researcher_country_id is not None:
+        prev = snapshot.country_states[actor.researcher_country_id]
+        if prev.has_researcher == actor_id:
+            prev.has_researcher = None
+    actor.researcher_country_id = country_id
+    snapshot.country_states[country_id].has_researcher = actor_id
 
 
 def _cure(snapshot: GameSnapshot, actor_id: str) -> None:
     actor = snapshot.players[actor_id]
-    if actor.researcherCountryId is None:
+    if actor.researcher_country_id is None:
         raise ResearcherNotInCountry("no researcher placed")
-    state = snapshot.countryStates[actor.researcherCountryId]
-    state.diseaseCubes = 0
+    state = snapshot.country_states[actor.researcher_country_id]
+    state.disease_cubes = 0
 
 
 def _create_vaccine(snapshot: GameSnapshot, actor_id: str) -> None:
     cfg = snapshot.game.config
     actor = snapshot.players[actor_id]
-    if actor.researcherCountryId is None:
+    if actor.researcher_country_id is None:
         raise ResearcherNotInCountry("no researcher placed")
-    target_id = actor.researcherCountryId
-    state = snapshot.countryStates[target_id]
+    target_id = actor.researcher_country_id
+    state = snapshot.country_states[target_id]
     if state.vaccinated:
         raise CountryAlreadyVaccinated("country is already vaccinated")
     if cfg.vaccine_requires_all_researchers:
         for p in snapshot.players.values():
             if p.eliminated:
                 continue
-            if p.researcherCountryId != target_id:
+            if p.researcher_country_id != target_id:
                 raise NotAllResearchersPresent(
                     "all non-eliminated researchers must be co-located"
                 )
@@ -183,15 +183,15 @@ def _create_vaccine(snapshot: GameSnapshot, actor_id: str) -> None:
 def _attack(
     snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRNG
 ) -> None:
-    src = snapshot.countryStates.get(action.fromCountryId)
-    dst = snapshot.countryStates.get(action.toCountryId)
+    src = snapshot.country_states.get(action.from_country_id)
+    dst = snapshot.country_states.get(action.to_country_id)
     if src is None or dst is None:
         raise InvalidAction("unknown country")
-    if src.ownerPlayerId != actor_id:
+    if src.owner_player_id != actor_id:
         raise NotYourCountry("attack source must be owned by you")
-    if dst.ownerPlayerId == actor_id:
+    if dst.owner_player_id == actor_id:
         raise InvalidAction("cannot attack your own country")
-    if action.toCountryId not in snapshot.map.neighbors(action.fromCountryId):
+    if action.to_country_id not in snapshot.map.neighbors(action.from_country_id):
         raise NotAdjacent("attack target must be adjacent to source")
     if action.armies < 1 or action.armies >= src.armies:
         raise NotEnoughTroops("must commit at least 1 and leave at least 1 behind")
@@ -201,25 +201,25 @@ def _attack(
     dst.armies = result.defender_remaining
 
     if result.captured:
-        previous_owner = dst.ownerPlayerId
-        dst.ownerPlayerId = actor_id
+        previous_owner = dst.owner_player_id
+        dst.owner_player_id = actor_id
         dst.armies = result.attacker_remaining
         # Capital conquest?
-        if previous_owner is not None and dst.isCapitalOf == previous_owner:
+        if previous_owner is not None and dst.is_capital_of == previous_owner:
             cfg = snapshot.game.config
             if cfg.capital_loss_eliminates_player:
                 eliminate_player(
                     snapshot,
                     eliminated_id=previous_owner,
                     conqueror_id=actor_id,
-                    round_number=snapshot.game.turn.roundNumber,
+                    round_number=snapshot.game.turn.round_number,
                 )
                 # Mid-turn win check.
                 winner = check_win_condition(snapshot)
                 if winner is not None:
                     snapshot.game.status = "ended"
-                    snapshot.game.endedReason = "victory"
-                    snapshot.game.winnerPlayerId = winner
+                    snapshot.game.ended_reason = "victory"
+                    snapshot.game.winner_player_id = winner
     else:
         # Attackers retreat home with whatever survived.
         src.armies += result.attacker_remaining
@@ -228,13 +228,13 @@ def _attack(
 def _move_troops(
     snapshot: GameSnapshot, actor_id: str, action: MoveTroops
 ) -> None:
-    src = snapshot.countryStates.get(action.fromCountryId)
-    dst = snapshot.countryStates.get(action.toCountryId)
+    src = snapshot.country_states.get(action.from_country_id)
+    dst = snapshot.country_states.get(action.to_country_id)
     if src is None or dst is None:
         raise InvalidAction("unknown country")
-    if src.ownerPlayerId != actor_id or dst.ownerPlayerId != actor_id:
+    if src.owner_player_id != actor_id or dst.owner_player_id != actor_id:
         raise NotYourCountry("move requires both ends to be owned by you")
-    if action.toCountryId not in snapshot.map.neighbors(action.fromCountryId):
+    if action.to_country_id not in snapshot.map.neighbors(action.from_country_id):
         raise NotAdjacent("destination must be adjacent")
     if action.armies < 1 or action.armies >= src.armies:
         raise NotEnoughTroops("must move at least 1 and leave at least 1 behind")

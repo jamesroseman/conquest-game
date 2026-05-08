@@ -29,33 +29,33 @@ from conquest.models.snapshot import GameSnapshot
 
 
 def initialize_country_states(snapshot: GameSnapshot) -> None:
-    """Seed `countryStates` with one entry per country, all unowned."""
+    """Seed `country_states` with one entry per country, all unowned."""
     for cid in snapshot.map.countries:
-        snapshot.countryStates[cid] = CountryState(countryId=cid)
+        snapshot.country_states[cid] = CountryState(country_id=cid)
 
 
 def place_troop(snapshot: GameSnapshot, actor_id: str, action: PlaceTroop) -> None:
     """Place one troop. Risk-style claim rule applies until every country has an owner."""
     _require_setup_phase(snapshot, "troops")
     _require_active_seat(snapshot, actor_id)
-    state = _country_state(snapshot, action.countryId)
+    state = _country_state(snapshot, action.country_id)
     actor = snapshot.players[actor_id]
 
-    all_claimed = all(s.ownerPlayerId is not None for s in snapshot.countryStates.values())
+    all_claimed = all(s.owner_player_id is not None for s in snapshot.country_states.values())
     if not all_claimed:
-        if state.ownerPlayerId is not None:
+        if state.owner_player_id is not None:
             # Must place on an unclaimed country first.
             raise CountryNotUnclaimed("must place on an unclaimed country until all are claimed")
     else:
-        if state.ownerPlayerId != actor_id:
+        if state.owner_player_id != actor_id:
             raise NotYourCountry("can only reinforce countries you own")
 
-    if state.ownerPlayerId is None:
-        state.ownerPlayerId = actor_id
+    if state.owner_player_id is None:
+        state.owner_player_id = actor_id
     state.armies += 1
-    actor.troopsRemainingToPlace -= 1
-    actor.stats.totalArmies += 1
-    if state.ownerPlayerId == actor_id:
+    actor.troops_remaining_to_place -= 1
+    actor.stats.total_armies += 1
+    if state.owner_player_id == actor_id:
         # Recount once at the end of placement; here just bump.
         pass
 
@@ -64,20 +64,20 @@ def place_troop(snapshot: GameSnapshot, actor_id: str, action: PlaceTroop) -> No
 
 def _advance_setup_seat_after_troop(snapshot: GameSnapshot) -> None:
     """Move to the next non-eliminated player; if all have placed all troops, advance phase."""
-    players = sorted(snapshot.players.values(), key=lambda p: p.seatOrder)
+    players = sorted(snapshot.players.values(), key=lambda p: p.seat_order)
     n = len(players)
-    if all(p.troopsRemainingToPlace == 0 for p in players):
+    if all(p.troops_remaining_to_place == 0 for p in players):
         snapshot.game.setup.phase = "disease_seed"
-        snapshot.game.setup.activeSeatOrder = 0
+        snapshot.game.setup.active_seat_order = 0
         return
-    seat = snapshot.game.setup.activeSeatOrder
+    seat = snapshot.game.setup.active_seat_order
     for _ in range(n):
         seat = (seat + 1) % n
-        if players[seat].troopsRemainingToPlace > 0:
-            snapshot.game.setup.activeSeatOrder = seat
+        if players[seat].troops_remaining_to_place > 0:
+            snapshot.game.setup.active_seat_order = seat
             return
     snapshot.game.setup.phase = "disease_seed"
-    snapshot.game.setup.activeSeatOrder = 0
+    snapshot.game.setup.active_seat_order = 0
 
 
 def seed_disease(snapshot: GameSnapshot, rng: SeededRNG) -> list[str]:
@@ -95,15 +95,15 @@ def seed_disease(snapshot: GameSnapshot, rng: SeededRNG) -> list[str]:
         cfg.setup_disease_2cube_count : cfg.setup_disease_2cube_count + cfg.setup_disease_1cube_count
     ]
     for cid in two_cube:
-        s = snapshot.countryStates[cid]
-        s.diseaseCubes = 2
+        s = snapshot.country_states[cid]
+        s.disease_cubes = 2
         seeded.append(cid)
     for cid in one_cube:
-        s = snapshot.countryStates[cid]
-        s.diseaseCubes = 1
+        s = snapshot.country_states[cid]
+        s.disease_cubes = 1
         seeded.append(cid)
     snapshot.game.setup.phase = "researchers"
-    snapshot.game.setup.activeSeatOrder = 0
+    snapshot.game.setup.active_seat_order = 0
     return seeded
 
 
@@ -113,43 +113,43 @@ def place_researcher(
     _require_setup_phase(snapshot, "researchers")
     _require_active_seat(snapshot, actor_id)
     actor = snapshot.players[actor_id]
-    if actor.researcherCountryId is not None:
+    if actor.researcher_country_id is not None:
         raise InvalidAction("researcher already placed")
-    state = _country_state(snapshot, action.countryId)
-    if state.ownerPlayerId != actor_id:
+    state = _country_state(snapshot, action.country_id)
+    if state.owner_player_id != actor_id:
         raise NotYourCountry("researcher must be placed on a country you own")
-    actor.researcherCountryId = action.countryId
-    state.hasResearcher = actor_id
-    _advance_setup_seat_after_unique(snapshot, attr="researcherCountryId", next_phase="capitals")
+    actor.researcher_country_id = action.country_id
+    state.has_researcher = actor_id
+    _advance_setup_seat_after_unique(snapshot, attr="researcher_country_id", next_phase="capitals")
 
 
 def place_capital(snapshot: GameSnapshot, actor_id: str, action: PlaceCapital) -> None:
     _require_setup_phase(snapshot, "capitals")
     _require_active_seat(snapshot, actor_id)
     actor = snapshot.players[actor_id]
-    if actor.capitalCountryId is not None:
+    if actor.capital_country_id is not None:
         raise InvalidAction("capital already placed")
-    state = _country_state(snapshot, action.countryId)
-    if state.ownerPlayerId != actor_id:
+    state = _country_state(snapshot, action.country_id)
+    if state.owner_player_id != actor_id:
         raise NotYourCountry("capital must be on a country you own")
-    actor.capitalCountryId = action.countryId
-    state.isCapitalOf = actor_id
-    _advance_setup_seat_after_unique(snapshot, attr="capitalCountryId", next_phase="done")
+    actor.capital_country_id = action.country_id
+    state.is_capital_of = actor_id
+    _advance_setup_seat_after_unique(snapshot, attr="capital_country_id", next_phase="done")
 
 
 def _advance_setup_seat_after_unique(
     snapshot: GameSnapshot, *, attr: str, next_phase: str
 ) -> None:
-    players = sorted(snapshot.players.values(), key=lambda p: p.seatOrder)
-    seat = snapshot.game.setup.activeSeatOrder
+    players = sorted(snapshot.players.values(), key=lambda p: p.seat_order)
+    seat = snapshot.game.setup.active_seat_order
     for _ in range(len(players)):
         seat = (seat + 1) % len(players)
         if getattr(players[seat], attr) is None:
-            snapshot.game.setup.activeSeatOrder = seat
+            snapshot.game.setup.active_seat_order = seat
             return
     # Everybody placed.
     snapshot.game.setup.phase = next_phase  # type: ignore[assignment]
-    snapshot.game.setup.activeSeatOrder = 0
+    snapshot.game.setup.active_seat_order = 0
 
 
 def _require_setup_phase(snapshot: GameSnapshot, phase: str) -> None:
@@ -159,11 +159,11 @@ def _require_setup_phase(snapshot: GameSnapshot, phase: str) -> None:
 
 def _require_active_seat(snapshot: GameSnapshot, actor_id: str) -> None:
     actor = snapshot.players[actor_id]
-    if actor.seatOrder != snapshot.game.setup.activeSeatOrder:
+    if actor.seat_order != snapshot.game.setup.active_seat_order:
         raise NotYourTurn("not your turn in setup")
 
 
 def _country_state(snapshot: GameSnapshot, country_id: str) -> CountryState:
-    if country_id not in snapshot.countryStates:
+    if country_id not in snapshot.country_states:
         raise InvalidAction(f"unknown country {country_id}")
-    return snapshot.countryStates[country_id]
+    return snapshot.country_states[country_id]

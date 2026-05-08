@@ -1,4 +1,7 @@
-"""Strawberry GraphQL types. Mirror Pydantic models with explicit field names."""
+"""Strawberry GraphQL types.
+
+Wire format is camelCase (GraphQL convention); we read from snake_case Pydantic attrs.
+"""
 from __future__ import annotations
 
 from typing import Optional
@@ -26,7 +29,7 @@ class User:
 
     @classmethod
     def from_model(cls, m: UserModel) -> "User":
-        return cls(userId=m.userId, email=m.email, displayName=m.displayName)
+        return cls(userId=m.user_id, email=m.email, displayName=m.display_name)
 
 
 @strawberry.type
@@ -81,7 +84,7 @@ class Tile:
 
     @classmethod
     def from_model(cls, m: TileModel) -> "Tile":
-        return cls(x=m.x, y=m.y, terrain=m.terrain, countryId=m.countryId)
+        return cls(x=m.x, y=m.y, terrain=m.terrain, countryId=m.country_id)
 
 
 @strawberry.type
@@ -100,7 +103,10 @@ class Path:
     @classmethod
     def from_model(cls, m: PathModel) -> "Path":
         return cls(
-            pathId=m.pathId, countryAId=m.countryAId, countryBId=m.countryBId, kind=m.kind
+            pathId=m.path_id,
+            countryAId=m.country_a_id,
+            countryBId=m.country_b_id,
+            kind=m.kind,
         )
 
 
@@ -117,12 +123,12 @@ class Country:
     @classmethod
     def from_model(cls, m: CountryModel) -> "Country":
         return cls(
-            countryId=m.countryId,
+            countryId=m.country_id,
             name=m.name,
-            continentId=m.continentId,
+            continentId=m.continent_id,
             centroidX=m.centroid[0],
             centroidY=m.centroid[1],
-            pathIds=list(m.pathIds),
+            pathIds=list(m.path_ids),
             tiles=[TileCoord(x=t[0], y=t[1]) for t in m.tiles],
         )
 
@@ -139,12 +145,12 @@ class Continent:
     @classmethod
     def from_model(cls, m: ContinentModel) -> "Continent":
         return cls(
-            continentId=m.continentId,
+            continentId=m.continent_id,
             name=m.name,
-            isIsland=m.isIsland,
-            countryIds=list(m.countryIds),
-            tileCount=m.tileCount,
-            bonusArmies=m.bonusArmies,
+            isIsland=m.is_island,
+            countryIds=list(m.country_ids),
+            tileCount=m.tile_count,
+            bonusArmies=m.bonus_armies,
         )
 
 
@@ -161,7 +167,7 @@ class Map:
     @classmethod
     def from_model(cls, m: MapModel) -> "Map":
         return cls(
-            mapId=m.mapId,
+            mapId=m.map_id,
             width=m.width,
             height=m.height,
             countries=[Country.from_model(c) for c in m.countries.values()],
@@ -184,13 +190,13 @@ class CountryState:
     @classmethod
     def from_model(cls, m: CountryStateModel) -> "CountryState":
         return cls(
-            countryId=m.countryId,
-            ownerPlayerId=m.ownerPlayerId,
+            countryId=m.country_id,
+            ownerPlayerId=m.owner_player_id,
             armies=m.armies,
-            diseaseCubes=m.diseaseCubes,
+            diseaseCubes=m.disease_cubes,
             vaccinated=m.vaccinated,
-            isCapitalOf=m.isCapitalOf,
-            hasResearcher=m.hasResearcher,
+            isCapitalOf=m.is_capital_of,
+            hasResearcher=m.has_researcher,
         )
 
 
@@ -213,19 +219,19 @@ class Player:
     @classmethod
     def from_model(cls, m: PlayerModel) -> "Player":
         return cls(
-            playerId=m.playerId,
-            seatOrder=m.seatOrder,
+            playerId=m.player_id,
+            seatOrder=m.seat_order,
             color=m.color,
             kind=m.kind,
-            userId=m.userId,
-            archetype=m.aiConfig.archetype if m.aiConfig else None,
-            difficulty=m.aiConfig.difficulty if m.aiConfig else None,
-            troopsRemainingToPlace=m.troopsRemainingToPlace,
-            researcherCountryId=m.researcherCountryId,
-            capitalCountryId=m.capitalCountryId,
+            userId=m.user_id,
+            archetype=m.ai_config.archetype if m.ai_config else None,
+            difficulty=m.ai_config.difficulty if m.ai_config else None,
+            troopsRemainingToPlace=m.troops_remaining_to_place,
+            researcherCountryId=m.researcher_country_id,
+            capitalCountryId=m.capital_country_id,
             eliminated=m.eliminated,
-            countriesOwned=m.stats.countriesOwned,
-            totalArmies=m.stats.totalArmies,
+            countriesOwned=m.stats.countries_owned,
+            totalArmies=m.stats.total_armies,
         )
 
 
@@ -268,30 +274,30 @@ class Game:
     @classmethod
     def from_model(cls, m: GameModel) -> "Game":
         return cls(
-            gameId=m.gameId,
+            gameId=m.game_id,
             name=m.name,
             status=m.status,
             isJoinable=m.is_joinable,
-            ownerUserId=m.ownerUserId,
-            minPlayers=m.minPlayers,
-            maxPlayers=m.maxPlayers,
-            isPublic=m.isPublic,
-            inviteCode=m.inviteCode,
-            playerCount=m.playerCount,
-            mapId=m.mapId,
+            ownerUserId=m.owner_user_id,
+            minPlayers=m.min_players,
+            maxPlayers=m.max_players,
+            isPublic=m.is_public,
+            inviteCode=m.invite_code,
+            playerCount=m.player_count,
+            mapId=m.map_id,
             config=GameConfig.from_model(m.config),
-            setup=SetupState(phase=m.setup.phase, activeSeatOrder=m.setup.activeSeatOrder),
+            setup=SetupState(phase=m.setup.phase, activeSeatOrder=m.setup.active_seat_order),
             turn=TurnState(
-                activePlayerId=m.turn.activePlayerId,
-                actionsRemaining=m.turn.actionsRemaining,
-                reinforcementsToPlace=m.turn.reinforcementsToPlace,
-                turnNumber=m.turn.turnNumber,
-                roundNumber=m.turn.roundNumber,
+                activePlayerId=m.turn.active_player_id,
+                actionsRemaining=m.turn.actions_remaining,
+                reinforcementsToPlace=m.turn.reinforcements_to_place,
+                turnNumber=m.turn.turn_number,
+                roundNumber=m.turn.round_number,
                 phase=m.turn.phase,
             ),
             outbreakCount=m.outbreaks.count,
-            winnerPlayerId=m.winnerPlayerId,
-            endedReason=m.endedReason,
+            winnerPlayerId=m.winner_player_id,
+            endedReason=m.ended_reason,
         )
 
 
@@ -309,7 +315,7 @@ class GameStateView:
         return cls(
             game=Game.from_model(snap.game),
             players=[Player.from_model(p) for p in snap.players.values()],
-            countryStates=[CountryState.from_model(s) for s in snap.countryStates.values()],
+            countryStates=[CountryState.from_model(s) for s in snap.country_states.values()],
             map=Map.from_model(snap.map),
         )
 

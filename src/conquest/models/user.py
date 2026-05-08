@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from .base import CamelModel
 
 
-class User(BaseModel):
-    userId: str
+class User(CamelModel):
+    user_id: str
     email: str | None = None
-    displayName: str
-    createdAt: datetime
-    lastLoginAt: datetime
+    display_name: str
+    created_at: datetime
+    last_login_at: datetime

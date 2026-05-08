@@ -86,7 +86,7 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
     grid = relabeled
 
     # Continent 0 is the designated island (placed first with extra ocean buffer).
-    # The rules engine treats `isIsland` as a labeled property used for sea-path quotas
+    # The rules engine treats `is_island` as a labeled property used for sea-path quotas
     # and rendering; geometric isolation is enforced equally for all landmasses.
     is_island = [i < params.island_continent_count for i in range(params.continent_count)]
     # Sanity: the designated island landmass should still be at least as isolated as the
@@ -115,28 +115,28 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
             cx = sum(t[0] for t in ctiles) / len(ctiles)
             cy = sum(t[1] for t in ctiles) / len(ctiles)
             countries[cid] = Country(
-                countryId=cid,
+                country_id=cid,
                 name=country_name(country_running_idx - 1),
-                continentId=cont_id,
+                continent_id=cont_id,
                 tiles=list(ctiles),
                 centroid=(cx, cy),
-                pathIds=[],
+                path_ids=[],
             )
             country_ids.append(cid)
         continents[cont_id] = Continent(
-            continentId=cont_id,
+            continent_id=cont_id,
             name=continent_name(cont_idx),
-            isIsland=is_island[cont_idx],
-            countryIds=country_ids,
-            tileCount=len(landmass_to_continent[cont_idx]),
-            bonusArmies=bonus_units[cont_idx],
+            is_island=is_island[cont_idx],
+            country_ids=country_ids,
+            tile_count=len(landmass_to_continent[cont_idx]),
+            bonus_armies=bonus_units[cont_idx],
         )
 
     # Build tile→country lookup.
     tile_country: dict[tuple[int, int], str] = {}
     for c in countries.values():
         for tx, ty in c.tiles:
-            tile_country[(tx, ty)] = c.countryId
+            tile_country[(tx, ty)] = c.country_id
 
     # --- Step 6 + 7: paths ---
     paths = _compute_land_paths(countries, tile_country)
@@ -144,8 +144,8 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
 
     # Cross-link path ids onto countries.
     for p in paths.values():
-        countries[p.countryAId].pathIds.append(p.pathId)
-        countries[p.countryBId].pathIds.append(p.pathId)
+        countries[p.country_a_id].path_ids.append(p.path_id)
+        countries[p.country_b_id].path_ids.append(p.path_id)
 
     # --- Step 9: emit ---
     tiles: list[Tile] = []
@@ -156,13 +156,13 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
                 Tile(
                     x=x, y=y,
                     terrain="land" if cid is not None else "ocean",
-                    countryId=cid,
+                    country_id=cid,
                 )
             )
 
     map_id = _hash_params(params)
     return Map(
-        mapId=map_id,
+        map_id=map_id,
         params=params,
         width=width,
         height=height,
@@ -492,15 +492,15 @@ def _compute_land_paths(
     paths: dict[str, Path] = {}
     for i, (a, b) in enumerate(sorted(pairs)):
         # Only land path if same continent.
-        if countries[a].continentId != countries[b].continentId:
+        if countries[a].continent_id != countries[b].continent_id:
             continue
         pid = f"p_{i}"
-        paths[pid] = Path(pathId=pid, countryAId=a, countryBId=b, kind="land")
+        paths[pid] = Path(path_id=pid, country_a_id=a, country_b_id=b, kind="land")
     # Re-key with stable short ids.
     out: dict[str, Path] = {}
-    for i, p in enumerate(sorted(paths.values(), key=lambda p: (p.countryAId, p.countryBId))):
+    for i, p in enumerate(sorted(paths.values(), key=lambda p: (p.country_a_id, p.country_b_id))):
         pid = f"p_{i}"
-        out[pid] = Path(pathId=pid, countryAId=p.countryAId, countryBId=p.countryBId, kind="land")
+        out[pid] = Path(path_id=pid, country_a_id=p.country_a_id, country_b_id=p.country_b_id, kind="land")
     return out
 
 
@@ -521,10 +521,10 @@ def _add_sea_paths(
     coastal_by_cont: dict[str, list[str]] = {cid: [] for cid in continents}
     for cid, country in countries.items():
         if _is_coastal(country, tile_country):
-            coastal_by_cont[country.continentId].append(cid)
+            coastal_by_cont[country.continent_id].append(cid)
 
     # Find the island continent; force ≥ 2 sea paths to it.
-    island_id = next((c.continentId for c in continents.values() if c.isIsland), None)
+    island_id = next((c.continent_id for c in continents.values() if c.is_island), None)
 
     chosen_pairs: set[tuple[str, str]] = set()
 
@@ -534,12 +534,12 @@ def _add_sea_paths(
         if (a, b) in chosen_pairs:
             return
         # Don't duplicate an existing land path either.
-        if any(p.countryAId == a and p.countryBId == b for p in paths.values()):
+        if any(p.country_a_id == a and p.country_b_id == b for p in paths.values()):
             return
         chosen_pairs.add((a, b))
         pid = f"sp_{next_idx}"
         next_idx += 1
-        paths[pid] = Path(pathId=pid, countryAId=a, countryBId=b, kind="sea")
+        paths[pid] = Path(path_id=pid, country_a_id=a, country_b_id=b, kind="sea")
 
     # Always at least 2 island sea paths.
     if island_id is not None:

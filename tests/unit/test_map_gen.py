@@ -25,30 +25,30 @@ def test_invariants_across_seeds(seed: int) -> None:
     # Exactly 4 continents.
     assert len(m.continents) == 4
     # Exactly 1 island.
-    islands = [c for c in m.continents.values() if c.isIsland]
+    islands = [c for c in m.continents.values() if c.is_island]
     assert len(islands) == 1
     # All land tiles assigned.
     for tile in m.tiles:
         if tile.terrain == "land":
-            assert tile.countryId is not None
+            assert tile.country_id is not None
         else:
-            assert tile.countryId is None
+            assert tile.country_id is None
     # Country tile counts sum to land tile count.
     assert sum(len(c.tiles) for c in m.countries.values()) == _land_tile_count(m)
     # Continents reference real countries.
     for cont in m.continents.values():
-        for cid in cont.countryIds:
+        for cid in cont.country_ids:
             assert cid in m.countries
-            assert m.countries[cid].continentId == cont.continentId
+            assert m.countries[cid].continent_id == cont.continent_id
     # ≥ 2 sea paths to the island.
-    island_id = islands[0].continentId
+    island_id = islands[0].continent_id
     sea_to_island = [
         p
         for p in m.paths.values()
         if p.kind == "sea"
         and (
-            m.countries[p.countryAId].continentId == island_id
-            or m.countries[p.countryBId].continentId == island_id
+            m.countries[p.country_a_id].continent_id == island_id
+            or m.countries[p.country_b_id].continent_id == island_id
         )
     ]
     assert len(sea_to_island) >= 2
@@ -56,7 +56,7 @@ def test_invariants_across_seeds(seed: int) -> None:
 
 def test_continent_bonus_is_proportional() -> None:
     m = generate_map(MapGenParams(seed=7))
-    total_bonus = sum(c.bonusArmies for c in m.continents.values())
+    total_bonus = sum(c.bonus_armies for c in m.continents.values())
     # Bonuses are clamped (min 1 per continent) so the total can exceed the pool by at most
     # `continent_count` (one extra per continent).
     pool = 12
@@ -75,3 +75,10 @@ def test_map_size_rejects_invalid_player_count() -> None:
         MapGenParams.for_player_count(seed=1, player_count=1)
     with pytest.raises(ValueError):
         MapGenParams.for_player_count(seed=1, player_count=7)
+
+
+def test_map_size_validator_rejects_oversized_grid() -> None:
+    with pytest.raises(ValueError):
+        MapGenParams(seed=1, width=200, height=200)
+    with pytest.raises(ValueError):
+        MapGenParams(seed=1, width=8, height=8)

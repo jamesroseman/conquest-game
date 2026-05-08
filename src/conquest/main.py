@@ -2,7 +2,7 @@
 
 REST surface (kept small — these are auth + identity only):
     POST /auth/google     {idToken}                → {token, user}
-    POST /auth/dev-login  {displayName, email?}    → {token, user}        (dev only)
+    POST /auth/dev-login  {display_name, email?}    → {token, user}        (dev only)
     GET  /auth/me                                  → {user}                (Bearer)
 
 Everything else lives in GraphQL at `/graphql`.
@@ -13,7 +13,7 @@ import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from conquest.models.base import CamelModel
 from strawberry.fastapi import GraphQLRouter
 
 from conquest.api.context import ConquestContext
@@ -24,19 +24,19 @@ from conquest.services.auth_service import AuthService
 from conquest.services.game_service import GameService
 
 
-class GoogleAuthBody(BaseModel):
-    idToken: str
+class GoogleAuthBody(CamelModel):
+    id_token: str
 
 
-class DevLoginBody(BaseModel):
-    displayName: str
+class DevLoginBody(CamelModel):
+    display_name: str
     email: str | None = None
 
 
-class AuthResponse(BaseModel):
+class AuthResponse(CamelModel):
     token: str
-    userId: str
-    displayName: str
+    user_id: str
+    display_name: str
     email: str | None = None
 
 
@@ -51,19 +51,19 @@ def create_app(*, repo: InMemoryRepository | None = None, config: AppConfig | No
 
     def _to_response(token: str, user) -> AuthResponse:  # type: ignore[no-untyped-def]
         return AuthResponse(
-            token=token, userId=user.userId, displayName=user.displayName, email=user.email
+            token=token, user_id=user.user_id, display_name=user.display_name, email=user.email
         )
 
     @app.post("/auth/google", response_model=AuthResponse)
     def auth_google(body: GoogleAuthBody) -> AuthResponse:
-        result = auth.authenticate_google(body.idToken)
+        result = auth.authenticate_google(body.id_token)
         return _to_response(result.token, result.user)
 
     @app.post("/auth/dev-login", response_model=AuthResponse)
     def auth_dev_login(body: DevLoginBody) -> AuthResponse:
         if os.environ.get("CONQUEST_DEV_LOGIN", "1") != "1":
             raise HTTPException(status_code=403, detail="dev login disabled")
-        result = auth.dev_login(display_name=body.displayName, email=body.email)
+        result = auth.dev_login(display_name=body.display_name, email=body.email)
         return _to_response(result.token, result.user)
 
     @app.get("/auth/me", response_model=AuthResponse)
@@ -73,8 +73,8 @@ def create_app(*, repo: InMemoryRepository | None = None, config: AppConfig | No
         user = auth.user_from_token(creds.credentials)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
-        return AuthResponse(token=creds.credentials, userId=user.userId,
-                            displayName=user.displayName, email=user.email)
+        return AuthResponse(token=creds.credentials, user_id=user.user_id,
+                            display_name=user.display_name, email=user.email)
 
     # --- GraphQL -----------------------------------------------------------
 

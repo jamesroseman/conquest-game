@@ -14,28 +14,28 @@ from conquest.models.snapshot import GameSnapshot
 
 def _three_player_snapshot() -> GameSnapshot:
     countries = {
-        f"c{i}": Country(countryId=f"c{i}", name=f"C{i}", continentId="x",
+        f"c{i}": Country(country_id=f"c{i}", name=f"C{i}", continent_id="x",
                          tiles=[(i, 0)], centroid=(i, 0))
         for i in range(3)
     }
-    cont = Continent(continentId="x", name="X", isIsland=False,
-                     countryIds=list(countries.keys()), tileCount=3, bonusArmies=3)
-    m = Map(mapId="m", params=MapGenParams(seed=1), width=3, height=1, tiles=[],
+    cont = Continent(continent_id="x", name="X", is_island=False,
+                     country_ids=list(countries.keys()), tile_count=3, bonus_armies=3)
+    m = Map(map_id="m", params=MapGenParams(seed=1), width=3, height=1, tiles=[],
             countries=countries, continents={"x": cont}, paths={})
     now = datetime.now(timezone.utc)
-    game = Game(gameId="g", mapId="m", name="t", config=GameConfig(),
-                createdAt=now, updatedAt=now, rngSeed=1, ownerUserId="u1")
+    game = Game(game_id="g", map_id="m", name="t", config=GameConfig(),
+                created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1")
     players = {
-        f"p{i}": Player(playerId=f"p{i}", seatOrder=i, color="#000", kind="human", userId=f"u{i}",
-                        capitalCountryId=f"c{i}", researcherCountryId=f"c{i}")
+        f"p{i}": Player(player_id=f"p{i}", seat_order=i, color="#000", kind="human", user_id=f"u{i}",
+                        capital_country_id=f"c{i}", researcher_country_id=f"c{i}")
         for i in range(3)
     }
     states = {
-        f"c{i}": CountryState(countryId=f"c{i}", ownerPlayerId=f"p{i}", armies=5,
-                              isCapitalOf=f"p{i}", hasResearcher=f"p{i}")
+        f"c{i}": CountryState(country_id=f"c{i}", owner_player_id=f"p{i}", armies=5,
+                              is_capital_of=f"p{i}", has_researcher=f"p{i}")
         for i in range(3)
     }
-    return GameSnapshot(game=game, map=m, players=players, countryStates=states)
+    return GameSnapshot(game=game, map=m, players=players, country_states=states)
 
 
 def test_eliminate_transfers_countries_and_clears_researcher() -> None:
@@ -44,14 +44,14 @@ def test_eliminate_transfers_countries_and_clears_researcher() -> None:
     assert snap.players["p1"].eliminated
     # All p1 countries now owned by p0.
     assert all(
-        s.ownerPlayerId == "p0" for s in snap.countryStates.values() if s.countryId == "c1"
+        s.owner_player_id == "p0" for s in snap.country_states.values() if s.country_id == "c1"
     )
-    assert snap.countryStates["c1"].isCapitalOf is None
-    assert snap.countryStates["c1"].hasResearcher is None
-    assert snap.players["p1"].researcherCountryId is None
-    assert snap.players["p1"].capitalCountryId is None
+    assert snap.country_states["c1"].is_capital_of is None
+    assert snap.country_states["c1"].has_researcher is None
+    assert snap.players["p1"].researcher_country_id is None
+    assert snap.players["p1"].capital_country_id is None
     # p0 retains its capital.
-    assert snap.countryStates["c0"].isCapitalOf == "p0"
+    assert snap.country_states["c0"].is_capital_of == "p0"
 
 
 def test_win_condition_last_competitor() -> None:

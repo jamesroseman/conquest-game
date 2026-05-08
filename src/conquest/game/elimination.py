@@ -20,39 +20,39 @@ def eliminate_player(
     if eliminated.eliminated:
         return
     eliminated.eliminated = True
-    eliminated.eliminatedByPlayerId = conqueror_id
-    eliminated.eliminatedAtRound = round_number
+    eliminated.eliminated_by_player_id = conqueror_id
+    eliminated.eliminated_at_round = round_number
 
     # Transfer all owned countries.
-    for state in snapshot.countryStates.values():
-        if state.ownerPlayerId == eliminated_id:
-            state.ownerPlayerId = conqueror_id
-        if state.isCapitalOf == eliminated_id:
-            state.isCapitalOf = None
-        if state.hasResearcher == eliminated_id:
-            state.hasResearcher = None
+    for state in snapshot.country_states.values():
+        if state.owner_player_id == eliminated_id:
+            state.owner_player_id = conqueror_id
+        if state.is_capital_of == eliminated_id:
+            state.is_capital_of = None
+        if state.has_researcher == eliminated_id:
+            state.has_researcher = None
 
-    eliminated.researcherCountryId = None
-    eliminated.capitalCountryId = None
+    eliminated.researcher_country_id = None
+    eliminated.capital_country_id = None
 
     # Recompute active player order.
-    snapshot.game.activePlayerOrder = [
-        p.playerId
-        for p in sorted(snapshot.players.values(), key=lambda p: p.seatOrder)
+    snapshot.game.active_player_order = [
+        p.player_id
+        for p in sorted(snapshot.players.values(), key=lambda p: p.seat_order)
         if not p.eliminated
     ]
 
 
 def check_win_condition(snapshot: GameSnapshot) -> str | None:
-    """Return the winner's playerId if the configured win condition is satisfied; else None."""
+    """Return the winner's player_id if the configured win condition is satisfied; else None."""
     cfg = snapshot.game.config
     alive = [p for p in snapshot.players.values() if not p.eliminated]
     if cfg.win_condition == "last_competitor":
         if len(alive) == 1:
-            return alive[0].playerId
+            return alive[0].player_id
     elif cfg.win_condition == "capital_control":
         # Single owner of all capitals (proxy: only one alive with a capital).
-        capital_owners = {s.isCapitalOf for s in snapshot.countryStates.values() if s.isCapitalOf}
+        capital_owners = {s.is_capital_of for s in snapshot.country_states.values() if s.is_capital_of}
         if len(capital_owners) == 1:
             return next(iter(capital_owners))
     return None

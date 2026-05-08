@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import CamelModel
 
 
-class GameConfig(BaseModel):
+class GameConfig(CamelModel):
     """Gameplay parameters. Persisted verbatim on each game; never changed mid-game."""
 
     actions_per_turn: int = 5

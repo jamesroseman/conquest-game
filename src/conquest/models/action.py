@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal, Union
 
-from pydantic import BaseModel
+from .base import CamelModel
 
 ActionType = Literal[
     "place_troop",
@@ -19,55 +19,55 @@ ActionType = Literal[
 ]
 
 
-class PlaceTroop(BaseModel):
+class PlaceTroop(CamelModel):
     type: Literal["place_troop"] = "place_troop"
-    countryId: str
+    country_id: str
 
 
-class PlaceResearcher(BaseModel):
+class PlaceResearcher(CamelModel):
     type: Literal["place_researcher"] = "place_researcher"
-    countryId: str
+    country_id: str
 
 
-class PlaceCapital(BaseModel):
+class PlaceCapital(CamelModel):
     type: Literal["place_capital"] = "place_capital"
-    countryId: str
+    country_id: str
 
 
-class PlaceReinforcements(BaseModel):
+class PlaceReinforcements(CamelModel):
     type: Literal["place_reinforcements"] = "place_reinforcements"
-    placements: list[tuple[str, int]]  # (countryId, count) pairs
+    placements: list[tuple[str, int]]  # (country_id, count) pairs
 
 
-class MoveResearcherAdjacent(BaseModel):
+class MoveResearcherAdjacent(CamelModel):
     type: Literal["move_researcher_adjacent"] = "move_researcher_adjacent"
-    toCountryId: str
+    to_country_id: str
 
 
-class AirdropResearcher(BaseModel):
+class AirdropResearcher(CamelModel):
     type: Literal["airdrop_researcher"] = "airdrop_researcher"
-    toCountryId: str
+    to_country_id: str
 
 
-class Cure(BaseModel):
+class Cure(CamelModel):
     type: Literal["cure"] = "cure"
 
 
-class CreateVaccine(BaseModel):
+class CreateVaccine(CamelModel):
     type: Literal["create_vaccine"] = "create_vaccine"
 
 
-class Attack(BaseModel):
+class Attack(CamelModel):
     type: Literal["attack"] = "attack"
-    fromCountryId: str
-    toCountryId: str
+    from_country_id: str
+    to_country_id: str
     armies: int
 
 
-class MoveTroops(BaseModel):
+class MoveTroops(CamelModel):
     type: Literal["move_troops"] = "move_troops"
-    fromCountryId: str
-    toCountryId: str
+    from_country_id: str
+    to_country_id: str
     armies: int
 
 

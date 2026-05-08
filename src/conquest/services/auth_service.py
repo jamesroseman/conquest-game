@@ -50,21 +50,21 @@ class AuthService:
         )
         now = datetime.now(timezone.utc)
         if existing:
-            existing.lastLoginAt = now
-            existing.displayName = display_name
+            existing.last_login_at = now
+            existing.display_name = display_name
             self._repo.upsert_user(existing)
             user = existing
         else:
             user = User(
-                userId=user_id,
+                user_id=user_id,
                 email=email,
-                displayName=display_name,
-                createdAt=now,
-                lastLoginAt=now,
+                display_name=display_name,
+                created_at=now,
+                last_login_at=now,
             )
             self._repo.upsert_user(user)
         token = mint_jwt(
-            config=self._config, user_id=user.userId, display_name=user.displayName
+            config=self._config, user_id=user.user_id, display_name=user.display_name
         )
         return AuthResult(user=user, token=token)
 

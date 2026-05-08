@@ -4,8 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from .base import CamelModel
 from .game_config import GameConfig
 
 GameStatus = Literal[
@@ -21,56 +22,56 @@ SetupPhase = Literal["troops", "disease_seed", "researchers", "capitals", "done"
 TurnPhase = Literal["reinforcements", "actions", "virus"]
 
 
-class SetupState(BaseModel):
+class SetupState(CamelModel):
     phase: SetupPhase = "troops"
-    activeSeatOrder: int = 0
+    active_seat_order: int = 0
 
 
-class TurnState(BaseModel):
-    activePlayerId: str | None = None
-    actionsRemaining: int = 0
-    reinforcementsToPlace: int = 0
-    turnNumber: int = 0
-    roundNumber: int = 0
+class TurnState(CamelModel):
+    active_player_id: str | None = None
+    actions_remaining: int = 0
+    reinforcements_to_place: int = 0
+    turn_number: int = 0
+    round_number: int = 0
     phase: TurnPhase = "reinforcements"
 
 
-class OutbreakHistoryEntry(BaseModel):
-    roundNumber: int
-    originCountryId: str
-    chainedCountryIds: list[str]
+class OutbreakHistoryEntry(CamelModel):
+    round_number: int
+    origin_country_id: str
+    chained_country_ids: list[str]
 
 
-class Outbreaks(BaseModel):
+class Outbreaks(CamelModel):
     count: int = 0
     history: list[OutbreakHistoryEntry] = Field(default_factory=list)
 
 
-class Game(BaseModel):
-    gameId: str
-    mapId: str | None = None  # not generated until startGame; map size depends on player count
+class Game(CamelModel):
+    game_id: str
+    map_id: str | None = None
     name: str
     config: GameConfig
     status: GameStatus = "lobby"
-    createdAt: datetime
-    updatedAt: datetime
-    rngSeed: int
-    rngCursor: int = 0
-    ownerUserId: str
-    minPlayers: int = 2
-    maxPlayers: int = 6
-    isPublic: bool = False
-    inviteCode: str | None = None
-    playerIds: list[str] = Field(default_factory=list)
-    activePlayerOrder: list[str] = Field(default_factory=list)
-    playerCount: int = 0
+    created_at: datetime
+    updated_at: datetime
+    rng_seed: int
+    rng_cursor: int = 0
+    owner_user_id: str
+    min_players: int = 2
+    max_players: int = 6
+    is_public: bool = False
+    invite_code: str | None = None
+    player_ids: list[str] = Field(default_factory=list)
+    active_player_order: list[str] = Field(default_factory=list)
+    player_count: int = 0
     setup: SetupState = Field(default_factory=SetupState)
     turn: TurnState = Field(default_factory=TurnState)
     outbreaks: Outbreaks = Field(default_factory=Outbreaks)
-    winnerPlayerId: str | None = None
-    endedReason: Literal["outbreak_limit", "victory", None] = None
+    winner_player_id: str | None = None
+    ended_reason: Literal["outbreak_limit", "victory", None] = None
 
     @property
     def is_joinable(self) -> bool:
         """Game accepts new players iff it's still in the lobby with seats open."""
-        return self.status == "lobby" and self.playerCount < self.maxPlayers
+        return self.status == "lobby" and self.player_count < self.max_players

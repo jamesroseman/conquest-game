@@ -15,18 +15,18 @@ from conquest.models.snapshot import GameSnapshot
 def _toy_snapshot() -> GameSnapshot:
     cfg = GameConfig()
     countries = {
-        "c1": Country(countryId="c1", name="A", continentId="cont1", tiles=[(0, 0)], centroid=(0, 0)),
-        "c2": Country(countryId="c2", name="B", continentId="cont1", tiles=[(0, 1)], centroid=(0, 1)),
-        "c3": Country(countryId="c3", name="C", continentId="cont2", tiles=[(0, 2)], centroid=(0, 2)),
+        "c1": Country(country_id="c1", name="A", continent_id="cont1", tiles=[(0, 0)], centroid=(0, 0)),
+        "c2": Country(country_id="c2", name="B", continent_id="cont1", tiles=[(0, 1)], centroid=(0, 1)),
+        "c3": Country(country_id="c3", name="C", continent_id="cont2", tiles=[(0, 2)], centroid=(0, 2)),
     }
     continents = {
-        "cont1": Continent(continentId="cont1", name="X", isIsland=False,
-                           countryIds=["c1", "c2"], tileCount=2, bonusArmies=3),
-        "cont2": Continent(continentId="cont2", name="Y", isIsland=True,
-                           countryIds=["c3"], tileCount=1, bonusArmies=2),
+        "cont1": Continent(continent_id="cont1", name="X", is_island=False,
+                           country_ids=["c1", "c2"], tile_count=2, bonus_armies=3),
+        "cont2": Continent(continent_id="cont2", name="Y", is_island=True,
+                           country_ids=["c3"], tile_count=1, bonus_armies=2),
     }
     m = Map(
-        mapId="m1",
+        map_id="m1",
         params=MapGenParams(seed=1),
         width=1, height=3,
         tiles=[],
@@ -36,16 +36,16 @@ def _toy_snapshot() -> GameSnapshot:
     )
     now = datetime.now(timezone.utc)
     game = Game(
-        gameId="g1", mapId="m1", name="Test", config=cfg,
-        createdAt=now, updatedAt=now, rngSeed=1, ownerUserId="u1",
+        game_id="g1", map_id="m1", name="Test", config=cfg,
+        created_at=now, updated_at=now, rng_seed=1, owner_user_id="u1",
     )
-    p = Player(playerId="p1", seatOrder=0, color="#000", kind="human", userId="u1")
+    p = Player(player_id="p1", seat_order=0, color="#000", kind="human", user_id="u1")
     states = {
-        "c1": CountryState(countryId="c1", ownerPlayerId="p1", armies=3),
-        "c2": CountryState(countryId="c2", ownerPlayerId="p1", armies=4),
-        "c3": CountryState(countryId="c3", ownerPlayerId=None, armies=0),
+        "c1": CountryState(country_id="c1", owner_player_id="p1", armies=3),
+        "c2": CountryState(country_id="c2", owner_player_id="p1", armies=4),
+        "c3": CountryState(country_id="c3", owner_player_id=None, armies=0),
     }
-    return GameSnapshot(game=game, map=m, players={"p1": p}, countryStates=states)
+    return GameSnapshot(game=game, map=m, players={"p1": p}, country_states=states)
 
 
 def test_base_plus_per_country_plus_owned_continent() -> None:
@@ -56,6 +56,6 @@ def test_base_plus_per_country_plus_owned_continent() -> None:
 
 def test_no_continent_bonus_when_partial() -> None:
     snap = _toy_snapshot()
-    snap.countryStates["c2"].ownerPlayerId = None
+    snap.country_states["c2"].owner_player_id = None
     # 10 base + 1*1 owned + 0 = 11
     assert compute_reinforcements(snap, "p1") == 11

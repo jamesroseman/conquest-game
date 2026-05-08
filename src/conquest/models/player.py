@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import CamelModel
 
 ArchetypeId = Literal[
     "aggressor",
@@ -22,28 +24,28 @@ ArchetypeId = Literal[
 Difficulty = Literal["easy", "medium", "hard", "brutal"]
 
 
-class AIConfig(BaseModel):
+class AIConfig(CamelModel):
     archetype: ArchetypeId
     difficulty: Difficulty = "medium"
     seed: int
 
 
-class PlayerStats(BaseModel):
-    countriesOwned: int = 0
-    totalArmies: int = 0
+class PlayerStats(CamelModel):
+    countries_owned: int = 0
+    total_armies: int = 0
 
 
-class Player(BaseModel):
-    playerId: str
-    seatOrder: int
+class Player(CamelModel):
+    player_id: str
+    seat_order: int
     color: str
     kind: Literal["human", "ai"]
-    userId: str | None = None
-    aiConfig: AIConfig | None = None
-    troopsRemainingToPlace: int = 0
-    researcherCountryId: str | None = None
-    capitalCountryId: str | None = None
+    user_id: str | None = None
+    ai_config: AIConfig | None = None
+    troops_remaining_to_place: int = 0
+    researcher_country_id: str | None = None
+    capital_country_id: str | None = None
     eliminated: bool = False
-    eliminatedByPlayerId: str | None = None
-    eliminatedAtRound: int | None = None
+    eliminated_by_player_id: str | None = None
+    eliminated_at_round: int | None = None
     stats: PlayerStats = Field(default_factory=PlayerStats)

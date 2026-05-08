@@ -1,7 +1,7 @@
 """In-memory repository. Single-process; not safe for production.
 
 Mirrors the Firestore document model: top-level `users`, `maps`, `games`, plus per-game
-`players`, `countryStates`, and `events` collections. The Firestore implementation will
+`players`, `country_states`, and `events` collections. The Firestore implementation will
 implement the same `Repository` protocol.
 """
 from __future__ import annotations
@@ -73,25 +73,25 @@ class InMemoryRepository:
         return self._users.get(uid) if uid else None
 
     def upsert_user(self, user: User) -> None:
-        self._users[user.userId] = user
+        self._users[user.user_id] = user
         if user.email:
-            self._users_by_email[user.email.lower()] = user.userId
+            self._users_by_email[user.email.lower()] = user.user_id
 
     # maps ------------------------------------------------------------------
     def get_map(self, map_id: str) -> Map | None:
         return self._maps.get(map_id)
 
     def put_map(self, m: Map) -> None:
-        self._maps[m.mapId] = m
+        self._maps[m.map_id] = m
 
     # games -----------------------------------------------------------------
     def get_game(self, game_id: str) -> Game | None:
         return self._games.get(game_id)
 
     def put_game(self, game: Game) -> None:
-        self._games[game.gameId] = game
-        if game.inviteCode:
-            self._invite_index[game.inviteCode] = game.gameId
+        self._games[game.game_id] = game
+        if game.invite_code:
+            self._invite_index[game.invite_code] = game.game_id
 
     def list_games(self) -> Iterable[Game]:
         return list(self._games.values())
@@ -105,7 +105,7 @@ class InMemoryRepository:
         return dict(self._players.get(game_id, {}))
 
     def put_player(self, game_id: str, player: Player) -> None:
-        self._players.setdefault(game_id, {})[player.playerId] = player
+        self._players.setdefault(game_id, {})[player.player_id] = player
 
     def delete_player(self, game_id: str, player_id: str) -> None:
         self._players.get(game_id, {}).pop(player_id, None)
@@ -115,7 +115,7 @@ class InMemoryRepository:
         return dict(self._states.get(game_id, {}))
 
     def put_country_state(self, game_id: str, state: CountryState) -> None:
-        self._states.setdefault(game_id, {})[state.countryId] = state
+        self._states.setdefault(game_id, {})[state.country_id] = state
 
     def put_country_states(
         self, game_id: str, states: dict[str, CountryState]
@@ -132,18 +132,18 @@ class InMemoryRepository:
     # composite -------------------------------------------------------------
     def load_snapshot(self, game_id: str) -> GameSnapshot | None:
         game = self.get_game(game_id)
-        if game is None or game.mapId is None:
+        if game is None or game.map_id is None:
             return None
-        m = self.get_map(game.mapId)
+        m = self.get_map(game.map_id)
         if m is None:
             return None
         players = self.get_players(game_id)
         states = self.get_country_states(game_id)
-        return GameSnapshot(game=game, map=m, players=players, countryStates=states)
+        return GameSnapshot(game=game, map=m, players=players, country_states=states)
 
     def save_snapshot(self, snapshot: GameSnapshot) -> None:
         self.put_game(snapshot.game)
         self.put_map(snapshot.map)
-        gid = snapshot.game.gameId
+        gid = snapshot.game.game_id
         self._players[gid] = dict(snapshot.players)
-        self._states[gid] = dict(snapshot.countryStates)
+        self._states[gid] = dict(snapshot.country_states)

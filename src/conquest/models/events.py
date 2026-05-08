@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import CamelModel
 
 EventType = Literal[
     "place_troop",
@@ -29,10 +31,10 @@ EventType = Literal[
 ]
 
 
-class GameEvent(BaseModel):
-    eventId: str
+class GameEvent(CamelModel):
+    event_id: str
     sequence: int
     type: EventType
-    actorPlayerId: str | None = None
+    actor_player_id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
-    createdAt: datetime
+    created_at: datetime

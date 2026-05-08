@@ -25,12 +25,12 @@ def run_virus_phase(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult:
     result = VirusPhaseResult()
 
     # Step 1: casualties.
-    for cid, state in snapshot.countryStates.items():
-        if state.diseaseCubes <= 0 or state.armies <= 0:
+    for cid, state in snapshot.country_states.items():
+        if state.disease_cubes <= 0 or state.armies <= 0:
             continue
-        if state.diseaseCubes == 1:
+        if state.disease_cubes == 1:
             frac = cfg.casualty_fraction_one_cube
-        elif state.diseaseCubes == 2:
+        elif state.disease_cubes == 2:
             frac = cfg.casualty_fraction_two_cubes
         else:
             frac = cfg.casualty_fraction_three_cubes
@@ -39,10 +39,10 @@ def run_virus_phase(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult:
         if loss > 0:
             result.casualties.append(
                 CasualtyEvent(
-                    countryId=cid,
-                    cubes=state.diseaseCubes,
-                    armiesBefore=state.armies,
-                    armiesLost=loss,
+                    country_id=cid,
+                    cubes=state.disease_cubes,
+                    armies_before=state.armies,
+                    armies_lost=loss,
                 )
             )
             state.armies -= loss
@@ -50,7 +50,7 @@ def run_virus_phase(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult:
     # Step 2: place cubes.
     cube_count = cfg.cubes_to_spread(snapshot.game.outbreaks.count)
     eligible = [
-        cid for cid, s in snapshot.countryStates.items() if not s.vaccinated
+        cid for cid, s in snapshot.country_states.items() if not s.vaccinated
     ]
     if not eligible:
         return result
@@ -60,9 +60,9 @@ def run_virus_phase(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult:
         outbreak_set: set[str] = set()
         _place_or_outbreak(snapshot, target, result, outbreak_set, rng)
         if snapshot.game.outbreaks.count >= cfg.outbreak_loss_threshold:
-            result.gameEnded = True
+            result.game_ended = True
             snapshot.game.status = "ended"
-            snapshot.game.endedReason = "outbreak_limit"
+            snapshot.game.ended_reason = "outbreak_limit"
             return result
     return result
 
@@ -75,12 +75,12 @@ def _place_or_outbreak(
     rng: SeededRNG,
 ) -> None:
     cfg = snapshot.game.config
-    state = snapshot.countryStates[target_id]
+    state = snapshot.country_states[target_id]
     if state.vaccinated:
         return
-    if state.diseaseCubes < cfg.max_cubes_per_country:
-        state.diseaseCubes += 1
-        result.placements.append(CubePlacement(countryId=target_id, triggeredOutbreak=False))
+    if state.disease_cubes < cfg.max_cubes_per_country:
+        state.disease_cubes += 1
+        result.placements.append(CubePlacement(country_id=target_id, triggered_outbreak=False))
         return
 
     # OUTBREAK: each unvaccinated neighbor gains 1 cube; chain limited to once per country
@@ -91,30 +91,30 @@ def _place_or_outbreak(
     snapshot.game.outbreaks.count += 1
     chained: list[str] = []
     for nid in snapshot.map.neighbors(target_id):
-        nstate = snapshot.countryStates[nid]
+        nstate = snapshot.country_states[nid]
         if nstate.vaccinated:
             continue
         chained.append(nid)
         if cfg.vaccinated_blocks_outbreak_chain and nstate.vaccinated:
             continue
-        if nstate.diseaseCubes < cfg.max_cubes_per_country:
-            nstate.diseaseCubes += 1
-            result.placements.append(CubePlacement(countryId=nid, triggeredOutbreak=False))
+        if nstate.disease_cubes < cfg.max_cubes_per_country:
+            nstate.disease_cubes += 1
+            result.placements.append(CubePlacement(country_id=nid, triggered_outbreak=False))
         else:
             # Chained outbreak.
             _place_or_outbreak(snapshot, nid, result, already_outbroken, rng)
 
     from conquest.models.game import OutbreakHistoryEntry  # local to avoid cycle
 
-    result.outbreaks.append(Outbreak(originCountryId=target_id, chainedCountryIds=chained))
+    result.outbreaks.append(Outbreak(origin_country_id=target_id, chained_country_ids=chained))
     snapshot.game.outbreaks.history.append(
         OutbreakHistoryEntry(
-            roundNumber=snapshot.game.turn.roundNumber,
-            originCountryId=target_id,
-            chainedCountryIds=chained,
+            round_number=snapshot.game.turn.round_number,
+            origin_country_id=target_id,
+            chained_country_ids=chained,
         )
     )
 
 
 def initial_country_state(country_id: str) -> CountryState:
-    return CountryState(countryId=country_id)
+    return CountryState(country_id=country_id)

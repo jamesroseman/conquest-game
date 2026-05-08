@@ -21,27 +21,27 @@ from conquest.models.virus import VirusPhaseResult
 def begin_first_turn(snapshot: GameSnapshot) -> None:
     """Setup is done; start the very first player turn."""
     snapshot.game.status = "in_progress"
-    snapshot.game.activePlayerOrder = [
-        p.playerId
-        for p in sorted(snapshot.players.values(), key=lambda p: p.seatOrder)
+    snapshot.game.active_player_order = [
+        p.player_id
+        for p in sorted(snapshot.players.values(), key=lambda p: p.seat_order)
         if not p.eliminated
     ]
-    snapshot.game.turn.roundNumber = 1
-    snapshot.game.turn.turnNumber = 1
-    snapshot.game.turn.activePlayerId = snapshot.game.activePlayerOrder[0]
+    snapshot.game.turn.round_number = 1
+    snapshot.game.turn.turn_number = 1
+    snapshot.game.turn.active_player_id = snapshot.game.active_player_order[0]
     _start_turn(snapshot)
 
 
 def _start_turn(snapshot: GameSnapshot) -> None:
     """Compute reinforcements + auto-place capital bonus, set sub-phase to reinforcements."""
     cfg = snapshot.game.config
-    pid = snapshot.game.turn.activePlayerId
+    pid = snapshot.game.turn.active_player_id
     assert pid is not None
     total = compute_reinforcements(snapshot, pid)
     placed_to_capital = apply_capital_bonus(snapshot, pid)
-    snapshot.game.turn.reinforcementsToPlace = max(0, total - placed_to_capital)
-    snapshot.game.turn.actionsRemaining = cfg.actions_per_turn
-    snapshot.game.turn.phase = "reinforcements" if snapshot.game.turn.reinforcementsToPlace > 0 else "actions"
+    snapshot.game.turn.reinforcements_to_place = max(0, total - placed_to_capital)
+    snapshot.game.turn.actions_remaining = cfg.actions_per_turn
+    snapshot.game.turn.phase = "reinforcements" if snapshot.game.turn.reinforcements_to_place > 0 else "actions"
 
 
 def end_turn(snapshot: GameSnapshot, actor_id: str, rng: SeededRNG) -> VirusPhaseResult | None:
@@ -52,9 +52,9 @@ def end_turn(snapshot: GameSnapshot, actor_id: str, rng: SeededRNG) -> VirusPhas
     """
     if snapshot.game.status != "in_progress":
         raise WrongPhase("game not in progress")
-    if snapshot.game.turn.activePlayerId != actor_id:
+    if snapshot.game.turn.active_player_id != actor_id:
         raise NotYourTurn("not your turn")
-    if snapshot.game.turn.reinforcementsToPlace > 0:
+    if snapshot.game.turn.reinforcements_to_place > 0:
         raise ReinforcementsNotPlaced("place all reinforcements before ending turn")
 
     return _advance_to_next_turn(snapshot, rng)
@@ -63,17 +63,17 @@ def end_turn(snapshot: GameSnapshot, actor_id: str, rng: SeededRNG) -> VirusPhas
 def _advance_to_next_turn(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult | None:
     """Move to next non-eliminated player; if we wrap, run virus phase."""
     order = [
-        p.playerId
-        for p in sorted(snapshot.players.values(), key=lambda p: p.seatOrder)
+        p.player_id
+        for p in sorted(snapshot.players.values(), key=lambda p: p.seat_order)
         if not p.eliminated
     ]
-    snapshot.game.activePlayerOrder = order
+    snapshot.game.active_player_order = order
 
     if not order:
         # Everyone eliminated — that's a draw / game already ended.
         return None
 
-    current = snapshot.game.turn.activePlayerId
+    current = snapshot.game.turn.active_player_id
     try:
         idx = order.index(current) if current in order else -1
     except ValueError:
@@ -87,21 +87,21 @@ def _advance_to_next_turn(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseR
         snapshot.game.turn.phase = "virus"
         virus_result = run_virus_phase(snapshot, rng)
         if snapshot.game.status == "ended":
-            snapshot.game.turn.activePlayerId = None
+            snapshot.game.turn.active_player_id = None
             return virus_result
-        snapshot.game.turn.roundNumber += 1
+        snapshot.game.turn.round_number += 1
         next_idx = 0
 
     # Win condition check (e.g., elimination cascade earlier this turn already eliminated others).
     winner = check_win_condition(snapshot)
     if winner is not None:
         snapshot.game.status = "ended"
-        snapshot.game.endedReason = "victory"
-        snapshot.game.winnerPlayerId = winner
-        snapshot.game.turn.activePlayerId = None
+        snapshot.game.ended_reason = "victory"
+        snapshot.game.winner_player_id = winner
+        snapshot.game.turn.active_player_id = None
         return virus_result
 
-    snapshot.game.turn.activePlayerId = order[next_idx]
-    snapshot.game.turn.turnNumber += 1
+    snapshot.game.turn.active_player_id = order[next_idx]
+    snapshot.game.turn.turn_number += 1
     _start_turn(snapshot)
     return virus_result
