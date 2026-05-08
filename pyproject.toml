@@ -11,7 +11,7 @@ python = "^3.12"
 fastapi = "^0.115"
 uvicorn = { extras = ["standard"], version = "^0.32" }
 "strawberry-graphql" = { extras = ["fastapi"], version = "^0.246" }
-pydantic = "^2.9"
+pydantic = ">=2.7,<2.10"  # strawberry 0.246's pydantic compat shim breaks on 2.10+
 pyjwt = "^2.9"
 httpx = "^0.27"
 cryptography = "^43.0"
