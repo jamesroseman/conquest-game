@@ -102,7 +102,7 @@ class Query:
                 players=[
                     Player.from_model(p) for p in _ctx(info).repo.get_players(game_id).values()
                 ],
-                country_states=[],
+                countryStates=[],
                 map=None,
             )
         return GameStateView.from_snapshot(snap)
