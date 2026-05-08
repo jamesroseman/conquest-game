@@ -54,7 +54,10 @@ class MapGenParams(CamelModel):
         if not MIN_PLAYERS <= player_count <= MAX_PLAYERS:
             raise ValueError(f"player_count must be between {MIN_PLAYERS} and {MAX_PLAYERS}")
         target_country_count = max(28, min(56, player_count * 7))
-        avg_country_tiles = 15
+        # Tiles-per-country averaged up from 15 → 22 so the iso renderer has
+        # more pixels per country (better visual fidelity for biome motifs,
+        # mountain peaks, forest tufts) without changing rule-bearing counts.
+        avg_country_tiles = 22
         land_tiles = target_country_count * avg_country_tiles
         total_tiles = int(land_tiles / 0.45)
         width = int((total_tiles * 1.6) ** 0.5)

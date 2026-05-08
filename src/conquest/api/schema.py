@@ -187,8 +187,8 @@ class Mutation:
         self,
         info: Info,
         game_id: str,
-        archetype: str,
-        difficulty: str = "medium",
+        archetype: str | None = None,
+        difficulty: str | None = None,
     ) -> GameMutationResult:
         ctx = _ctx(info)
         user = ctx.require_user()

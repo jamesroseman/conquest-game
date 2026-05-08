@@ -145,8 +145,8 @@ class GameService:
         *,
         game_id: str,
         owner_user_id: str,
-        archetype: ArchetypeId,
-        difficulty: Difficulty = "medium",
+        archetype: ArchetypeId | None = None,
+        difficulty: Difficulty | None = None,
     ) -> Game:
         game = self._must_get_game(game_id)
         self._require_owner(game, owner_user_id)
@@ -154,13 +154,25 @@ class GameService:
             raise GameNotJoinable("cannot add AI: game is not in lobby")
         seat = game.player_count
         ai_seed = (game.rng_seed ^ (seat + 1) * 1103515245) & 0x7FFFFFFF
+        # Archetype and difficulty are intentionally hidden from the UI — pick
+        # one at random per seat so each game feels fresh. Tests still pass
+        # explicit values when they need a deterministic policy.
+        from conquest.ai.archetypes import ARCHETYPES as _ARCHETYPES
+
+        rng_pick = SeededRNG(ai_seed)
+        chosen_archetype: ArchetypeId = (
+            archetype if archetype is not None else cast("ArchetypeId", rng_pick.choice(list(_ARCHETYPES.keys())))
+        )
+        chosen_difficulty: Difficulty = (
+            difficulty if difficulty is not None else cast("Difficulty", rng_pick.choice(["easy", "medium", "hard", "brutal"]))
+        )
         player_id = f"p_{uuid.uuid4().hex[:8]}"
         ai_player = Player(
             player_id=player_id,
             seat_order=seat,
             color=PLAYER_COLORS[seat % len(PLAYER_COLORS)],
             kind="ai",
-            ai_config=AIConfig(archetype=archetype, difficulty=difficulty, seed=ai_seed),
+            ai_config=AIConfig(archetype=chosen_archetype, difficulty=chosen_difficulty, seed=ai_seed),
             troops_remaining_to_place=game.config.starting_troops_per_player,
         )
         self._repo.put_player(game_id, ai_player)
