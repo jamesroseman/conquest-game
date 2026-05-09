@@ -106,8 +106,7 @@ class GameService:
                 snap = self._repo.load_snapshot(game_id)
                 if snap is None:
                     return
-                rng_local = SeededRNG(snap.game.rng_seed)
-                rng_local.cursor = snap.game.rng_cursor
+                rng_local = SeededRNG(snap.game.rng_seed, cursor=snap.game.rng_cursor)
                 if drain_setup:
                     self._pace_ai_setup(snap, rng_local)
                 if snap.game.status == "in_progress":
@@ -149,7 +148,7 @@ class GameService:
             # placement so bot turns play at a deliberate cadence. Tests pass
             # `config` explicitly to keep the model-level default (0) and
             # run instantly.
-            config=config or GameConfig(ai_action_delay_ms=2000),
+            config=config or GameConfig(ai_action_delay_ms=1000),
             status="lobby",
             created_at=now,
             updated_at=now,
