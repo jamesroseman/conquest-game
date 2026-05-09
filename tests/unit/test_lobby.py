@@ -31,7 +31,9 @@ def test_join_without_invite_rejected(game_service: GameService) -> None:
 
 
 def test_add_ai_seats_and_start(game_service: GameService) -> None:
-    g = game_service.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
+    g = game_service.create_game(
+        owner_user_id="u1", owner_display_name="Alice", seed=1, max_players=3
+    )
     game_service.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="aggressor")
     game_service.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="medic")
     snap = game_service.start_game(game_id=g.game_id, owner_user_id="u1")
@@ -52,14 +54,18 @@ def test_start_requires_min_players(game_service: GameService) -> None:
 
 
 def test_start_requires_owner(game_service: GameService) -> None:
-    g = game_service.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
+    g = game_service.create_game(
+        owner_user_id="u1", owner_display_name="Alice", seed=1, max_players=2
+    )
     game_service.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="aggressor")
     with pytest.raises(RuleError):
         game_service.start_game(game_id=g.game_id, owner_user_id="someone-else")
 
 
 def test_game_not_joinable_after_start(game_service: GameService) -> None:
-    g = game_service.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
+    g = game_service.create_game(
+        owner_user_id="u1", owner_display_name="Alice", seed=1, max_players=2
+    )
     game_service.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="aggressor")
     game_service.start_game(game_id=g.game_id, owner_user_id="u1")
     g2 = game_service._must_get_game(g.game_id)

@@ -12,7 +12,11 @@ from conquest.game.errors import (
     ReinforcementsNotPlaced,
     WrongPhase,
 )
-from conquest.game.reinforcements import apply_capital_bonus, compute_reinforcements
+from conquest.game.reinforcements import (
+    apply_capital_bonus,
+    compute_reinforcements,
+    recompute_player_stats,
+)
 from conquest.game.rng import SeededRNG
 from conquest.game.virus import run_virus_phase
 from conquest.models.snapshot import GameSnapshot
@@ -38,6 +42,12 @@ def _start_turn(snapshot: GameSnapshot) -> None:
     cfg = snapshot.game.config
     pid = snapshot.game.turn.active_player_id
     assert pid is not None
+    # Refresh derived stats so the client's reinforcement-breakdown UI sees
+    # an up-to-date `countries_owned` for the active player. Setup mutates
+    # ownership directly through the setup engine, which doesn't go through
+    # apply_action and so doesn't trigger recompute_player_stats; without
+    # this, the very first reinforcement panel would show "0 countries".
+    recompute_player_stats(snapshot)
     total = compute_reinforcements(snapshot, pid)
     placed_to_capital = apply_capital_bonus(snapshot, pid)
     snapshot.game.turn.reinforcements_to_place = max(0, total - placed_to_capital)

@@ -142,8 +142,8 @@ def test_abandon_swaps_kind_to_ai() -> None:
     from conquest.services.game_service import GameService
 
     repo = InMemoryRepository()
-    svc = GameService(repo)
-    g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
+    svc = GameService(repo, run_ai_in_background=False)
+    g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1, max_players=3)
     svc.join_game(game_id=g.game_id, user_id="u2", display_name="Bob", invite_code=g.invite_code)
     svc.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="medic")
     snap = svc.start_game(game_id=g.game_id, owner_user_id="u1")

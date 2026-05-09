@@ -37,8 +37,8 @@ def test_policy_for_unknown_raises() -> None:
 def test_ai_drains_setup_after_human_placement() -> None:
     """After a human places a setup troop, AI seats should auto-place too."""
     repo = InMemoryRepository()
-    svc = GameService(repo)
-    g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1)
+    svc = GameService(repo, run_ai_in_background=False)
+    g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=1, max_players=2)
     svc.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="aggressor")
     snap = svc.start_game(game_id=g.game_id, owner_user_id="u1")
 
@@ -61,8 +61,8 @@ def test_ai_drains_setup_after_human_placement() -> None:
 def test_ai_vs_ai_finishes_a_full_setup() -> None:
     """Two AIs can complete the entire setup phase by themselves through the runner."""
     repo = InMemoryRepository()
-    svc = GameService(repo)
-    g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=42)
+    svc = GameService(repo, run_ai_in_background=False)
+    g = svc.create_game(owner_user_id="u1", owner_display_name="Alice", seed=42, max_players=2)
     svc.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="medic")
     # We need a human to start the game (per ownership rule), but the AI seats can
     # still drive setup. To get an all-AI setup we'd need a sim harness; here we

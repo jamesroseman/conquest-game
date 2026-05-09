@@ -34,6 +34,10 @@ class AIConfig(CamelModel):
 class PlayerStats(CamelModel):
     countries_owned: int = 0
     total_armies: int = 0
+    # Cumulative disease cubes this player has personally cured this game.
+    # Surfaces in the Game Overview panel so players can see who's actually
+    # dragging the outbreak counter down vs free-riding.
+    cubes_cured: int = 0
 
 
 class Player(CamelModel):

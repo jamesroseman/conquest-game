@@ -15,4 +15,6 @@ def repo() -> InMemoryRepository:
 
 @pytest.fixture
 def game_service(repo: InMemoryRepository) -> GameService:
-    return GameService(repo)
+    # Tests run AI drains synchronously so assertions can inspect the
+    # post-drain state without waiting on a background thread.
+    return GameService(repo, run_ai_in_background=False)

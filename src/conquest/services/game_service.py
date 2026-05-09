@@ -16,6 +16,7 @@ In-game flow:
 from __future__ import annotations
 
 import secrets
+import threading
 import time
 import uuid
 from collections.abc import Sequence
@@ -64,9 +65,55 @@ class GameService:
         repo,  # type: ignore[no-untyped-def]
         *,
         max_active_games_per_user: int = DEFAULT_MAX_ACTIVE_GAMES_PER_USER,
+        run_ai_in_background: bool = True,
     ) -> None:
         self._repo = repo
         self._max_active_games_per_user = max_active_games_per_user
+        # When True, AI drains run on a daemon thread so the mutation
+        # request returns immediately and polling clients see intermediate
+        # snapshots between AI placements/turns. Tests pass False to keep
+        # behavior synchronous and deterministic.
+        self._run_ai_in_background = run_ai_in_background
+        self._game_locks: dict[str, threading.Lock] = {}
+        self._locks_mu = threading.Lock()
+
+    def _lock_for(self, game_id: str) -> threading.Lock:
+        # Per-game serialization. Mutations + AI drains for the same game
+        # must not interleave; concurrent games are independent.
+        with self._locks_mu:
+            lock = self._game_locks.get(game_id)
+            if lock is None:
+                lock = threading.Lock()
+                self._game_locks[game_id] = lock
+            return lock
+
+    def _spawn_ai_drain(
+        self, snapshot: GameSnapshot, rng: SeededRNG, *, drain_setup: bool
+    ) -> None:
+        """Either run AI drain inline (tests) or kick it off in a background
+        thread. The background thread reloads the latest snapshot inside
+        the per-game lock to avoid races with other mutations."""
+        game_id = snapshot.game.game_id
+        if not self._run_ai_in_background:
+            if drain_setup:
+                self._pace_ai_setup(snapshot, rng)
+            if snapshot.game.status == "in_progress":
+                self._pace_ai_turns(snapshot, rng)
+            return
+
+        def _worker() -> None:
+            with self._lock_for(game_id):
+                snap = self._repo.load_snapshot(game_id)
+                if snap is None:
+                    return
+                rng_local = SeededRNG(snap.game.rng_seed)
+                rng_local.cursor = snap.game.rng_cursor
+                if drain_setup:
+                    self._pace_ai_setup(snap, rng_local)
+                if snap.game.status == "in_progress":
+                    self._pace_ai_turns(snap, rng_local)
+
+        threading.Thread(target=_worker, daemon=True, name=f"ai-drain-{game_id}").start()
 
     # --- Lobby ----------------------------------------------------------------
 
@@ -257,7 +304,7 @@ class GameService:
             snapshot.game.status == "in_progress"
             and snapshot.game.turn.active_player_id == target.player_id
         ):
-            self._pace_ai_turns(snapshot, rng)
+            self._spawn_ai_drain(snapshot, rng, drain_setup=False)
         return snapshot
 
     def remove_seat(self, *, game_id: str, owner_user_id: str, target_player_id: str) -> Game:
@@ -286,9 +333,11 @@ class GameService:
         self._require_owner(game, owner_user_id)
         if game.status != "lobby":
             raise GameNotStartable(f"game already {game.status}")
-        if game.player_count < game.min_players:
+        # Lobby must be full before the game can start. Owners are expected
+        # to top up with AI seats if the human seats don't all fill.
+        if game.player_count < game.max_players:
             raise GameNotStartable(
-                f"need at least {game.min_players} players, have {game.player_count}"
+                f"lobby is not full ({game.player_count}/{game.max_players}); add AI seats to fill it"
             )
 
         # Generate map for the actual player count.
@@ -366,14 +415,9 @@ class GameService:
         snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
-        # Drain any AI seats that should be placing right now (paced by config).
-        self._pace_ai_setup(snapshot, rng)
-        # If setup just finished and the first turn-active player is AI, run them too.
-        if snapshot.game.status == "in_progress":
-            self._pace_ai_turns(snapshot, rng)
-        snapshot.game.updated_at = datetime.now(UTC)
-        snapshot.game.rng_cursor = rng.cursor
-        self._repo.save_snapshot(snapshot)
+        # Drain AI seats off the request thread so the response returns
+        # immediately and polling clients see the bots place one at a time.
+        self._spawn_ai_drain(snapshot, rng, drain_setup=True)
         return snapshot
 
     def _drain_ai_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
@@ -437,9 +481,10 @@ class GameService:
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
         # If a human ended their turn or this action eliminated other players
-        # and the next active seat is AI, drain those AI turns paced.
+        # and the next active seat is AI, drain those AI turns in the
+        # background so the response returns immediately.
         if snapshot.game.status == "in_progress":
-            self._pace_ai_turns(snapshot, rng)
+            self._spawn_ai_drain(snapshot, rng, drain_setup=False)
         return snapshot
 
     def end_turn(
@@ -503,9 +548,10 @@ class GameService:
         snapshot.game.updated_at = datetime.now(UTC)
         snapshot.game.rng_cursor = rng.cursor
         self._repo.save_snapshot(snapshot)
-        # Drain AI seats following the now-ended human turn (paced).
+        # Drain AI seats following the now-ended human turn in the background
+        # so the response returns immediately.
         if snapshot.game.status == "in_progress":
-            self._pace_ai_turns(snapshot, rng)
+            self._spawn_ai_drain(snapshot, rng, drain_setup=False)
         return snapshot, result
 
     # --- AI pacing -----------------------------------------------------------

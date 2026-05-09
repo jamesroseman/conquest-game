@@ -162,6 +162,7 @@ def _cure(snapshot: GameSnapshot, actor_id: str) -> None:
     if actor.researcher_country_id is None:
         raise ResearcherNotInCountry("no researcher placed")
     state = snapshot.country_states[actor.researcher_country_id]
+    actor.stats.cubes_cured += state.disease_cubes
     state.disease_cubes = 0
 
 

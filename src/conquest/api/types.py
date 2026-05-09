@@ -229,6 +229,7 @@ class Player:
     eliminated: bool
     countries_owned: int
     total_armies: int
+    cubes_cured: int
 
     @classmethod
     def from_model(cls, m: PlayerModel) -> Player:
@@ -246,6 +247,7 @@ class Player:
             eliminated=m.eliminated,
             countries_owned=m.stats.countries_owned,
             total_armies=m.stats.total_armies,
+            cubes_cured=m.stats.cubes_cured,
         )
 
 

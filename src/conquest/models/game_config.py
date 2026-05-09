@@ -26,7 +26,7 @@ class GameConfig(CamelModel):
     setup_disease_1cube_count: int = 7
 
     max_cubes_per_country: int = 3
-    outbreak_loss_threshold: int = 11
+    outbreak_loss_threshold: int = 6
 
     spread_schedule: list[tuple[int, int, int]] = Field(
         default_factory=lambda: [(0, 3, 3), (4, 6, 5), (7, 10, 7)]

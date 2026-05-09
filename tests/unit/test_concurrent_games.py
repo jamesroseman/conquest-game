@@ -11,7 +11,7 @@ from conquest.services.game_service import GameService
 
 def test_multiple_games_for_same_user_dont_collide() -> None:
     repo = InMemoryRepository()
-    svc = GameService(repo)
+    svc = GameService(repo, run_ai_in_background=False)
     g1 = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1)
     g2 = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=2)
     assert g1.game_id != g2.game_id
@@ -25,9 +25,9 @@ def test_multiple_games_for_same_user_dont_collide() -> None:
 
 def test_multiple_users_play_concurrent_games() -> None:
     repo = InMemoryRepository()
-    svc = GameService(repo)
-    g_a = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1)
-    g_b = svc.create_game(owner_user_id="u2", owner_display_name="B", seed=2)
+    svc = GameService(repo, run_ai_in_background=False)
+    g_a = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1, max_players=2)
+    g_b = svc.create_game(owner_user_id="u2", owner_display_name="B", seed=2, max_players=2)
     svc.add_ai_seat(game_id=g_a.game_id, owner_user_id="u1", archetype="aggressor")
     svc.add_ai_seat(game_id=g_b.game_id, owner_user_id="u2", archetype="medic")
     s_a = svc.start_game(game_id=g_a.game_id, owner_user_id="u1")
@@ -39,7 +39,7 @@ def test_multiple_users_play_concurrent_games() -> None:
 
 def test_active_games_cap_enforced() -> None:
     repo = InMemoryRepository()
-    svc = GameService(repo, max_active_games_per_user=2)
+    svc = GameService(repo, max_active_games_per_user=2, run_ai_in_background=False)
     svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1)
     svc.create_game(owner_user_id="u1", owner_display_name="A", seed=2)
     with pytest.raises(InvalidAction):
@@ -48,7 +48,7 @@ def test_active_games_cap_enforced() -> None:
 
 def test_list_games_for_user_includes_seat_membership() -> None:
     repo = InMemoryRepository()
-    svc = GameService(repo)
+    svc = GameService(repo, run_ai_in_background=False)
     g = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1)
     svc.join_game(game_id=g.game_id, user_id="u2", display_name="B", invite_code=g.invite_code)
     assert any(x.game_id == g.game_id for x in svc.list_games_for_user("u2"))

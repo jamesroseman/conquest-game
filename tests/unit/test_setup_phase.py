@@ -9,7 +9,7 @@ from conquest.services.game_service import GameService
 
 
 def _two_player_game(svc: GameService):  # type: ignore[no-untyped-def]
-    g = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1)
+    g = svc.create_game(owner_user_id="u1", owner_display_name="A", seed=1, max_players=2)
     svc.add_ai_seat(game_id=g.game_id, owner_user_id="u1", archetype="aggressor")
     snap = svc.start_game(game_id=g.game_id, owner_user_id="u1")
     return snap
