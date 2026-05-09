@@ -417,14 +417,17 @@ class GameService:
         snapshot = self._load_snapshot(game_id)
         actor = self._resolve_player(snapshot, actor_user_id)
         rng = self._rng_for(snapshot)
-        apply_in_game_action(snapshot, actor.player_id, action, rng)
+        extras = apply_in_game_action(snapshot, actor.player_id, action, rng)
         winner = check_win_condition(snapshot)
         if winner is not None and snapshot.game.status != "ended":
             snapshot.game.status = "ended"
             snapshot.game.ended_reason = "victory"
             snapshot.game.winner_player_id = winner
         self._append_event(
-            game_id, cast("str", action.type), actor=actor.player_id, payload=action.model_dump()
+            game_id,
+            cast("str", action.type),
+            actor=actor.player_id,
+            payload={**action.model_dump(), **extras},
         )
         # Save the human's action snapshot immediately so the client poll
         # picks it up before the bot turns start playing.
@@ -445,7 +448,38 @@ class GameService:
         rng = self._rng_for(snapshot)
         result = turn_engine.end_turn(snapshot, actor.player_id, rng)
         if result is not None:
-            self._append_event(game_id, "round_end_virus", payload=result.model_dump())
+            # Surface a flat, JSON-friendly payload so the client can drive
+            # per-country damage and cube-spread animations.
+            self._append_event(
+                game_id,
+                "round_end_virus",
+                payload={
+                    "casualties": [
+                        {
+                            "country_id": c.country_id,
+                            "cubes": c.cubes,
+                            "armies_before": c.armies_before,
+                            "armies_lost": c.armies_lost,
+                        }
+                        for c in result.casualties
+                    ],
+                    "placements": [
+                        {
+                            "country_id": p.country_id,
+                            "triggered_outbreak": p.triggered_outbreak,
+                        }
+                        for p in result.placements
+                    ],
+                    "outbreaks": [
+                        {
+                            "origin_country_id": o.origin_country_id,
+                            "chained_country_ids": list(o.chained_country_ids),
+                        }
+                        for o in result.outbreaks
+                    ],
+                    "game_ended": result.game_ended,
+                },
+            )
         if snapshot.game.status == "ended":
             self._append_event(
                 game_id,
@@ -484,15 +518,19 @@ class GameService:
 
     def _pace_ai_turns(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
         delay_s = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
+        game_id = snapshot.game.game_id
 
-        def on_step(snap: GameSnapshot) -> None:
-            # Sleep BETWEEN actions and save so polling clients see the
-            # action land before the next one fires.
-            if delay_s > 0:
-                time.sleep(delay_s)
+        def on_step(snap: GameSnapshot, event_info: object | None) -> None:
+            # `event_info` is the (type, actor, payload) triple to append, or
+            # None for a no-event bookkeeping save.
+            if event_info is not None:
+                etype, actor, payload = event_info  # type: ignore[misc]
+                self._append_event(game_id, etype, actor=actor, payload=payload)
             snap.game.updated_at = datetime.now(UTC)
             snap.game.rng_cursor = rng.cursor
             self._repo.save_snapshot(snap)
+            if delay_s > 0:
+                time.sleep(delay_s)
 
         guard = 0
         max_iters = 100

@@ -17,6 +17,7 @@ as a human submission.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from typing import Any
 
 from conquest.ai.archetypes import policy_for
 from conquest.ai.policy import Policy
@@ -72,18 +73,23 @@ def run_ai_setup_step(snapshot: GameSnapshot, rng: SeededRNG) -> bool:
     return False
 
 
+StepEvent = tuple[str, str | None, dict[str, Any]]
+
+
 def run_ai_turn(
     snapshot: GameSnapshot,
     rng: SeededRNG,
     *,
-    on_step: Callable[[GameSnapshot], None] | None = None,
+    on_step: Callable[[GameSnapshot, StepEvent | None], None] | None = None,
 ) -> VirusPhaseResult | None:
     """Run a single AI player's full turn. Returns the virus result if end-of-round fires.
 
-    `on_step` (optional): invoked after each action mutates the snapshot —
-    reinforcements, every in-game action, and end-of-turn. The service uses
-    this to sleep + persist the intermediate snapshot so live clients see
-    the AI play tick-by-tick rather than jump.
+    `on_step` (optional): invoked after each mutation. The second argument
+    describes the event the caller should append to the log:
+    `(event_type, actor_player_id, payload_dict)`, or None for a no-event
+    bookkeeping save. The service layer uses this to (a) emit events for
+    AI actions (so the player sees the bot move in the EventLog) and
+    (b) sleep + persist between actions to pace the playback.
     """
     if snapshot.game.status != "in_progress":
         return None
@@ -105,14 +111,17 @@ def run_ai_turn(
             if owned:
                 placements = [(owned[0], snapshot.game.turn.reinforcements_to_place)]
         if placements:
-            apply_action(
-                snapshot,
-                player_id,
-                PlaceReinforcements(placements=placements),
-                rng,
-            )
+            reinforce_action = PlaceReinforcements(placements=placements)
+            extras = apply_action(snapshot, player_id, reinforce_action, rng)
             if on_step is not None:
-                on_step(snapshot)
+                on_step(
+                    snapshot,
+                    (
+                        "place_reinforcements",
+                        player_id,
+                        {**reinforce_action.model_dump(), **extras},
+                    ),
+                )
 
     # Actions sub-phase.
     intents = policy.take_actions(snapshot, player_id, rng)
@@ -122,19 +131,61 @@ def run_ai_turn(
         if snapshot.game.turn.actions_remaining <= 0:
             break
         try:
-            apply_action(snapshot, player_id, action, rng)
+            extras = apply_action(snapshot, player_id, action, rng)
         except Exception:  # noqa: BLE001 — invalid intent: skip rather than crash a sim
             continue
         if on_step is not None:
-            on_step(snapshot)
+            on_step(
+                snapshot,
+                (str(action.type), player_id, {**action.model_dump(), **extras}),
+            )
 
     # End the turn (also runs virus phase if this closes the round).
     if snapshot.game.status != "in_progress":
         return None
     result = turn_engine.end_turn(snapshot, player_id, rng)
     if on_step is not None:
-        on_step(snapshot)
+        on_step(snapshot, ("turn_ended", player_id, {}))
+        if result is not None:
+            on_step(
+                snapshot,
+                ("round_end_virus", None, _virus_payload(result)),
+            )
     return result
+
+
+def _virus_payload(result: VirusPhaseResult) -> dict[str, Any]:
+    """Flatten a VirusPhaseResult into a JSON-friendly dict for the event log.
+
+    The web client unpacks this to drive country-by-country damage and
+    cube-spread animations during the virus phase playback.
+    """
+    return {
+        "casualties": [
+            {
+                "country_id": c.country_id,
+                "cubes": c.cubes,
+                "armies_before": c.armies_before,
+                "armies_lost": c.armies_lost,
+            }
+            for c in result.casualties
+        ],
+        "placements": [
+            {
+                "country_id": p.country_id,
+                "triggered_outbreak": p.triggered_outbreak,
+            }
+            for p in result.placements
+        ],
+        "outbreaks": [
+            {
+                "origin_country_id": o.origin_country_id,
+                "chained_country_ids": list(o.chained_country_ids),
+            }
+            for o in result.outbreaks
+        ],
+        "game_ended": result.game_ended,
+    }
 
 
 def run_ai_until_human(snapshot: GameSnapshot, rng: SeededRNG, *, max_iters: int = 100) -> None:

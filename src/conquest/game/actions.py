@@ -6,7 +6,7 @@ on invalid actions. The service layer wraps this in a transaction.
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from conquest.game.combat import resolve_attack
 from conquest.game.elimination import check_win_condition, eliminate_player
@@ -43,8 +43,13 @@ def apply_action(
     actor_id: str,
     action: Action,
     rng: SeededRNG,
-) -> None:
-    """Validate and apply a single in-turn action. Raises `RuleError` subclasses."""
+) -> dict[str, Any]:
+    """Validate and apply a single in-turn action. Raises `RuleError` subclasses.
+
+    Returns a dict of "extras" — derived data the caller should merge into
+    the action's event payload (e.g. combat rounds for an Attack). Empty
+    for actions that have no derived state to surface.
+    """
     if snapshot.game.status != "in_progress":
         raise WrongPhase(f"game status is {snapshot.game.status}")
     if snapshot.game.turn.active_player_id != actor_id:
@@ -54,6 +59,8 @@ def apply_action(
     if actor.eliminated:
         raise NotYourTurn("eliminated players cannot act")
 
+    extras: dict[str, Any] = {}
+
     # Reinforcements sub-phase comes first; only `place_reinforcements` allowed there.
     if snapshot.game.turn.phase == "reinforcements":
         if not isinstance(action, PlaceReinforcements):
@@ -61,7 +68,7 @@ def apply_action(
         _apply_place_reinforcements(snapshot, actor_id, action)
         if snapshot.game.turn.reinforcements_to_place == 0:
             snapshot.game.turn.phase = "actions"
-        return
+        return extras
 
     if snapshot.game.turn.phase != "actions":
         raise WrongPhase(f"cannot act during phase {snapshot.game.turn.phase}")
@@ -81,7 +88,7 @@ def apply_action(
         _create_vaccine(snapshot, actor_id)
     elif isinstance(action, Attack):
         _spend(snapshot, cfg.cost_attack)
-        _attack(snapshot, actor_id, action, rng)
+        extras = _attack_with_extras(snapshot, actor_id, action, rng)
     elif isinstance(action, MoveTroops):
         _spend(snapshot, cfg.cost_move_troops)
         _move_troops(snapshot, actor_id, action)
@@ -89,6 +96,7 @@ def apply_action(
         raise InvalidAction(f"action type not allowed in actions phase: {type(action).__name__}")
 
     recompute_player_stats(snapshot)
+    return extras
 
 
 def _spend(snapshot: GameSnapshot, cost: int) -> None:
@@ -175,7 +183,9 @@ def _create_vaccine(snapshot: GameSnapshot, actor_id: str) -> None:
     state.vaccinated = True
 
 
-def _attack(snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRNG) -> None:
+def _attack_with_extras(
+    snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRNG
+) -> dict[str, Any]:
     src = snapshot.country_states.get(action.from_country_id)
     dst = snapshot.country_states.get(action.to_country_id)
     if src is None or dst is None:
@@ -188,6 +198,11 @@ def _attack(snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRN
         raise NotAdjacent("attack target must be adjacent to source")
     if action.armies < 1 or action.armies >= src.armies:
         raise NotEnoughTroops("must commit at least 1 and leave at least 1 behind")
+
+    # Capture the pre-attack defender owner so the client can colour the
+    # damage numbers correctly even after a capture flips the country.
+    defender_owner_before = dst.owner_player_id
+    defender_armies_before = dst.armies
 
     result = resolve_attack(rng, attacker_armies=action.armies, defender_armies=dst.armies)
     src.armies -= action.armies  # commit them
@@ -216,6 +231,26 @@ def _attack(snapshot: GameSnapshot, actor_id: str, action: Attack, rng: SeededRN
     else:
         # Attackers retreat home with whatever survived.
         src.armies += result.attacker_remaining
+
+    return {
+        "rounds": [
+            {
+                "attacker_losses": r.attacker_losses,
+                "defender_losses": r.defender_losses,
+                "attacker_after": r.attacker_after,
+                "defender_after": r.defender_after,
+            }
+            for r in result.rounds
+        ],
+        "captured": result.captured,
+        "attacker_losses": result.attacker_losses,
+        "defender_losses": result.defender_losses,
+        "attacker_remaining": result.attacker_remaining,
+        "defender_remaining": result.defender_remaining,
+        "attacker_owner_id": actor_id,
+        "defender_owner_id": defender_owner_before,
+        "defender_armies_before": defender_armies_before,
+    }
 
 
 def _move_troops(snapshot: GameSnapshot, actor_id: str, action: MoveTroops) -> None:
