@@ -10,6 +10,7 @@ from __future__ import annotations
 import strawberry
 
 from conquest.models.country_state import CountryState as CountryStateModel
+from conquest.models.events import GameEvent as GameEventModel
 from conquest.models.game import Game as GameModel
 from conquest.models.game_config import GameConfig as GameConfigModel
 from conquest.models.map import Continent as ContinentModel
@@ -314,22 +315,68 @@ class Game:
         )
 
 
+import json
+
+
+@strawberry.type
+class GameEvent:
+    """Append-only event entry. `payloadJson` is the raw payload dict
+    serialized as JSON so the wire format stays a simple string regardless
+    of which event type (and which payload shape) it is."""
+
+    event_id: str
+    sequence: int
+    type: str
+    actor_player_id: str | None
+    payload_json: str
+    created_at: str
+
+    @classmethod
+    def from_model(cls, m: GameEventModel) -> GameEvent:
+        return cls(
+            event_id=m.event_id,
+            sequence=m.sequence,
+            type=m.type,
+            actor_player_id=m.actor_player_id,
+            payload_json=json.dumps(m.payload, default=str),
+            created_at=m.created_at.isoformat(),
+        )
+
+
+# Last-N events surfaced through the GameStateView. Hard-cap on the wire
+# size — older events are still in the repo, but we never replay the full
+# history for the live HUD.
+RECENT_EVENT_LIMIT = 80
+
+
 @strawberry.type
 class GameStateView:
-    """Composed view of a single game — game root, players, country states, optional map."""
+    """Composed view of a single game — game root, players, country states,
+    optional map, and the most recent events for the live HUD."""
 
     game: Game
     players: list[Player]
     country_states: list[CountryState]
     map: Map | None
+    recent_events: list[GameEvent]
 
     @classmethod
-    def from_snapshot(cls, snap: GameSnapshot) -> GameStateView:
+    def from_snapshot(
+        cls,
+        snap: GameSnapshot,
+        events: list[GameEventModel] | None = None,
+    ) -> GameStateView:
+        # Tail of the event log, oldest → newest. Caller passes None when
+        # they don't care (creation paths that immediately replay).
+        evt_models = events or []
+        if len(evt_models) > RECENT_EVENT_LIMIT:
+            evt_models = evt_models[-RECENT_EVENT_LIMIT:]
         return cls(
             game=Game.from_model(snap.game),
             players=[Player.from_model(p) for p in snap.players.values()],
             country_states=[CountryState.from_model(s) for s in snap.country_states.values()],
             map=Map.from_model(snap.map),
+            recent_events=[GameEvent.from_model(e) for e in evt_models],
         )
 
 

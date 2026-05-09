@@ -104,8 +104,9 @@ class Query:
                 ],
                 country_states=[],
                 map=None,
+                recent_events=[],
             )
-        return GameStateView.from_snapshot(snap)
+        return GameStateView.from_snapshot(snap, _ctx(info).repo.list_events(game_id))
 
     @strawberry.field(permission_classes=_AUTH)
     def joinable_games(self, info: Info) -> list[Game]:
@@ -234,7 +235,7 @@ class Mutation:
             user_id=user.user_id,
             archetype=archetype,  # type: ignore[arg-type]
         )
-        return GameStateResult(state=GameStateView.from_snapshot(snap))
+        return GameStateResult(state=GameStateView.from_snapshot(snap, _ctx(info).repo.list_events(snap.game.game_id)))
 
     @strawberry.mutation(permission_classes=_AUTH)
     @_wrap
@@ -242,7 +243,7 @@ class Mutation:
         ctx = _ctx(info)
         user = ctx.require_user()
         snap = ctx.games.start_game(game_id=game_id, owner_user_id=user.user_id)
-        return GameStateResult(state=GameStateView.from_snapshot(snap))
+        return GameStateResult(state=GameStateView.from_snapshot(snap, _ctx(info).repo.list_events(snap.game.game_id)))
 
     # --- Setup actions ---
 
@@ -334,7 +335,7 @@ class Mutation:
         ctx = _ctx(info)
         user = ctx.require_user()
         snap, _virus = ctx.games.end_turn(game_id=game_id, actor_user_id=user.user_id)
-        return GameStateResult(state=GameStateView.from_snapshot(snap))
+        return GameStateResult(state=GameStateView.from_snapshot(snap, _ctx(info).repo.list_events(snap.game.game_id)))
 
 
 # --- Helpers (module-level, NOT methods) ---
