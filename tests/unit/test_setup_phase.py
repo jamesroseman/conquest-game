@@ -21,7 +21,8 @@ def test_first_country_claim_changes_owner(game_service: GameService) -> None:
     target = next(iter(snap.map.countries))
     setup_engine.place_troop(snap, seat0.player_id, PlaceTroop(country_id=target))
     assert snap.country_states[target].owner_player_id == seat0.player_id
-    assert snap.country_states[target].armies == 1
+    # 2 troops per placement (see setup_engine.TROOPS_PER_PLACEMENT).
+    assert snap.country_states[target].armies == 2
 
 
 def test_setup_advances_through_all_phases(game_service: GameService) -> None:
@@ -33,9 +34,10 @@ def test_setup_advances_through_all_phases(game_service: GameService) -> None:
     seat1 = next(p for p in snap.players.values() if p.seat_order == 1)
     players = [seat0, seat1]
 
-    # Phase 1: troops. Each places `starting_troops_per_player` (default 30) troops, alternating.
-    n_per = snap.game.config.starting_troops_per_player
-    total = n_per * 2
+    # Phase 1: troops. Each player places their full `troops_remaining_to_place`
+    # budget (set by the game service to 2x country count), alternating.
+    starting_per_player = next(iter(snap.players.values())).troops_remaining_to_place
+    total = starting_per_player * 2
     # Round-robin: until all countries claimed at least once we must go to fresh countries.
     n_countries = len(countries)
     placed = 0

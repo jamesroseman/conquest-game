@@ -54,7 +54,7 @@ def test_ai_drains_setup_after_human_placement() -> None:
     # The AI should have placed at least one troop too — its
     # `troops_remaining_to_place` should have decreased.
     ai = next(p for p in snap2.players.values() if p.kind == "ai")
-    starting = snap2.game.config.starting_troops_per_player
+    starting = max(8, 2 * len(snap2.map.countries))
     assert ai.troops_remaining_to_place < starting
 
 

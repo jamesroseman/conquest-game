@@ -35,8 +35,16 @@ def initialize_country_states(snapshot: GameSnapshot) -> None:
         snapshot.country_states[cid] = CountryState(country_id=cid)
 
 
+# Number of troops added per setup placement. The setup phase is hand-paced
+# by the player, so a 1-troop click on a 60-troop budget feels glacial. Two
+# at a time keeps placement engaging without changing the strategic depth.
+TROOPS_PER_PLACEMENT = 2
+
+
 def place_troop(snapshot: GameSnapshot, actor_id: str, action: PlaceTroop) -> None:
-    """Place one troop. Risk-style claim rule applies until every country has an owner."""
+    """Place TROOPS_PER_PLACEMENT troops at once (clamped to remaining).
+
+    Risk-style claim rule applies until every country has an owner."""
     _require_setup_phase(snapshot, "troops")
     _require_active_seat(snapshot, actor_id)
     state = _country_state(snapshot, action.country_id)
@@ -51,14 +59,12 @@ def place_troop(snapshot: GameSnapshot, actor_id: str, action: PlaceTroop) -> No
         if state.owner_player_id != actor_id:
             raise NotYourCountry("can only reinforce countries you own")
 
+    count = max(1, min(TROOPS_PER_PLACEMENT, actor.troops_remaining_to_place))
     if state.owner_player_id is None:
         state.owner_player_id = actor_id
-    state.armies += 1
-    actor.troops_remaining_to_place -= 1
-    actor.stats.total_armies += 1
-    if state.owner_player_id == actor_id:
-        # Recount once at the end of placement; here just bump.
-        pass
+    state.armies += count
+    actor.troops_remaining_to_place -= count
+    actor.stats.total_armies += count
 
     _advance_setup_seat_after_troop(snapshot)
 

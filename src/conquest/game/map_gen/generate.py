@@ -598,6 +598,9 @@ def _compute_land_paths(
 # --- Step 7: sea paths --------------------------------------------------------------------------
 
 
+SEA_PATHS_PER_COUNTRY_MAX = 2
+
+
 def _add_sea_paths(
     paths: dict[str, Path],
     countries: dict[str, Country],
@@ -607,68 +610,150 @@ def _add_sea_paths(
     params: MapGenParams,
     rng: SeededRNG,
 ) -> None:
-    """Add cross-continent sea paths. Island gets ≥ 2 of them."""
+    """Add cross-continent sea paths so the path graph is fully connected.
+
+    Constraints:
+        - Only coastal countries can host a sea path (a country is coastal
+          if any of its tiles is adjacent to an ocean tile).
+        - Each country gets at most SEA_PATHS_PER_COUNTRY_MAX = 2 sea
+          connections, so the visual stays uncluttered.
+        - The total path graph (land + sea) must reach every country
+          from every other — like real Risk, all territories should be
+          mutually accessible by some sequence of moves.
+
+    Strategy: build a union-find over continents under the existing land
+    paths. Repeatedly pick the closest cross-component coastal pair and
+    add a sea path between them, merging components, until the whole
+    graph is one component. Then optionally add one more "redundant"
+    crossing per (continent, island) pair so a single chokepoint can't
+    cut a continent off.
+    """
     next_idx = len(paths)
     coastal_by_cont: dict[str, list[str]] = {cid: [] for cid in continents}
     for cid, country in countries.items():
         if _is_coastal(country, tile_country):
             coastal_by_cont[country.continent_id].append(cid)
 
-    # Find the island continent; force ≥ 2 sea paths to it.
-    island_id = next((c.continent_id for c in continents.values() if c.is_island), None)
-
+    sea_count_per_country: dict[str, int] = {cid: 0 for cid in countries}
     chosen_pairs: set[tuple[str, str]] = set()
 
-    def add_pair(a: str, b: str) -> None:
+    def add_pair(a: str, b: str) -> bool:
         nonlocal next_idx
         a, b = sorted([a, b])
         if (a, b) in chosen_pairs:
-            return
-        # Don't duplicate an existing land path either.
+            return False
         if any(p.country_a_id == a and p.country_b_id == b for p in paths.values()):
-            return
+            return False
+        if sea_count_per_country[a] >= SEA_PATHS_PER_COUNTRY_MAX:
+            return False
+        if sea_count_per_country[b] >= SEA_PATHS_PER_COUNTRY_MAX:
+            return False
         chosen_pairs.add((a, b))
         pid = f"sp_{next_idx}"
         next_idx += 1
         paths[pid] = Path(path_id=pid, country_a_id=a, country_b_id=b, kind="sea")
+        sea_count_per_country[a] += 1
+        sea_count_per_country[b] += 1
+        return True
 
-    # Always at least 2 island sea paths.
-    if island_id is not None:
-        island_coast = list(coastal_by_cont[island_id])
-        rng.shuffle(island_coast)
-        mainland_coast: list[tuple[str, str]] = []
-        for cont_id, coast in coastal_by_cont.items():
-            if cont_id == island_id:
+    # Union-find over countries: which countries are in the same connected
+    # component under the current path graph.
+    parent: dict[str, str] = {cid: cid for cid in countries}
+
+    def find(c: str) -> str:
+        while parent[c] != c:
+            parent[c] = parent[parent[c]]
+            c = parent[c]
+        return c
+
+    def union(a: str, b: str) -> bool:
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return False
+        parent[ra] = rb
+        return True
+
+    for p in paths.values():
+        union(p.country_a_id, p.country_b_id)
+
+    def centroid_dist(a: str, b: str) -> float:
+        ax, ay = countries[a].centroid
+        bx, by = countries[b].centroid
+        return math.hypot(ax - bx, ay - by)
+
+    # Bridge components by repeatedly picking the closest cross-component
+    # coastal pair (with available capacity). Stop when one component
+    # contains every country.
+    while True:
+        # Group coastal countries by their current component root.
+        by_root: dict[str, list[str]] = {}
+        for cid in countries:
+            if not _is_coastal(countries[cid], tile_country):
                 continue
-            for cid in coast:
-                mainland_coast.append((cont_id, cid))
-        rng.shuffle(mainland_coast)
-        for i in range(min(2, len(island_coast), len(mainland_coast))):
-            add_pair(island_coast[i % len(island_coast)], mainland_coast[i][1])
+            if sea_count_per_country[cid] >= SEA_PATHS_PER_COUNTRY_MAX:
+                continue
+            by_root.setdefault(find(cid), []).append(cid)
+        if len(by_root) <= 1:
+            break
 
-    # Fill in the remaining sea paths between random cross-continent coastal pairs.
-    while len(chosen_pairs) < params.sea_path_count:
-        cont_ids = list(continents.keys())
+        # Find the closest pair across two different components.
+        best_pair: tuple[str, str] | None = None
+        best_d = math.inf
+        roots = list(by_root.keys())
+        for i, ra in enumerate(roots):
+            for rb in roots[i + 1 :]:
+                for ca in by_root[ra]:
+                    for cb in by_root[rb]:
+                        d = centroid_dist(ca, cb)
+                        if d < best_d:
+                            best_d = d
+                            best_pair = (ca, cb)
+        if best_pair is None:
+            break
+        a, b = best_pair
+        if add_pair(a, b):
+            union(a, b)
+        else:
+            # Capacity exhausted on this candidate; the outer loop will pick
+            # a different one next iteration. Break if no progress can be
+            # made to avoid spinning forever.
+            break
+
+    # Optional redundancy: add a small handful of extra crossings between
+    # different continents so the graph isn't a single fragile chain. Cap
+    # at params.sea_path_count total so the visual stays clean.
+    cont_ids = list(continents.keys())
+    safety = 0
+    while len(chosen_pairs) < params.sea_path_count and safety < 200:
+        safety += 1
         rng.shuffle(cont_ids)
         if len(cont_ids) < 2:
             break
         a_cont, b_cont = cont_ids[0], cont_ids[1]
-        a_pool = coastal_by_cont[a_cont]
-        b_pool = coastal_by_cont[b_cont]
+        a_pool = [
+            c
+            for c in coastal_by_cont[a_cont]
+            if sea_count_per_country[c] < SEA_PATHS_PER_COUNTRY_MAX
+        ]
+        b_pool = [
+            c
+            for c in coastal_by_cont[b_cont]
+            if sea_count_per_country[c] < SEA_PATHS_PER_COUNTRY_MAX
+        ]
         if not a_pool or not b_pool:
             continue
-        a = rng.choice(a_pool)
-        b = rng.choice(b_pool)
-        before = len(chosen_pairs)
-        add_pair(a, b)
-        if len(chosen_pairs) == before:
-            # Loop guard if all crossings exhausted — break to avoid infinite loop.
-            attempts = getattr(_add_sea_paths, "_attempts", 0) + 1
-            _add_sea_paths._attempts = attempts  # type: ignore[attr-defined]
-            if attempts > 100:
-                break
-        else:
-            _add_sea_paths._attempts = 0  # type: ignore[attr-defined]
+        # Closest available pair between these two continents.
+        best_pair = None
+        best_d = math.inf
+        for ca in a_pool:
+            for cb in b_pool:
+                d = centroid_dist(ca, cb)
+                if d < best_d:
+                    best_d = d
+                    best_pair = (ca, cb)
+        if best_pair is None:
+            continue
+        add_pair(*best_pair)
 
 
 def _is_coastal(country: Country, tile_country: dict[tuple[int, int], str]) -> bool:

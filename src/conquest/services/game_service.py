@@ -304,9 +304,13 @@ class GameService:
 
         snapshot = self._load_snapshot(game_id)
         setup_engine.initialize_country_states(snapshot)
-        # Seed troops_remaining_to_place per the config.
+        # Initial troop budget: 2 troops for every country on the map. With
+        # the 2-at-a-time placement rule that gives every player roughly
+        # `country_count` placement clicks, balanced across players.
+        country_count = len(m.countries)
+        initial_troops = max(8, 2 * country_count)
         for p in snapshot.players.values():
-            p.troops_remaining_to_place = snapshot.game.config.starting_troops_per_player
+            p.troops_remaining_to_place = initial_troops
         self._repo.save_snapshot(snapshot)
         self._append_event(
             game_id, "game_started", actor=owner_user_id, payload={"map_id": m.map_id}
@@ -549,20 +553,30 @@ class GameService:
             self._repo.save_snapshot(snapshot)
 
     def _pace_ai_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
-        delay_s = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
+        # Setup placements happen at HALF the in-game action delay so a
+        # 100+ tile placement phase doesn't drag forever. Each step still
+        # emits its own event + saves the snapshot so polling clients see
+        # bots place one at a time.
+        per_action = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
+        setup_delay_s = max(0.0, per_action / 2)
         max_iters = (
             snapshot.game.player_count * snapshot.game.config.starting_troops_per_player + 50
         )
+        game_id = snapshot.game.game_id
+
+        def on_event(etype: str, actor: str | None, payload: dict[str, object]) -> None:
+            self._append_event(game_id, etype, actor=actor, payload=payload)
+
         for _ in range(max_iters):
-            took_step = run_ai_setup_step(snapshot, rng)
+            took_step = run_ai_setup_step(snapshot, rng, on_event=on_event)
             if not took_step:
                 return
             self._auto_progress_setup(snapshot, rng)
             snapshot.game.updated_at = datetime.now(UTC)
             snapshot.game.rng_cursor = rng.cursor
             self._repo.save_snapshot(snapshot)
-            if delay_s > 0:
-                time.sleep(delay_s)
+            if setup_delay_s > 0:
+                time.sleep(setup_delay_s)
 
     # --- helpers --------------------------------------------------------------
 

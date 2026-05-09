@@ -42,8 +42,19 @@ def _policy_for_player(player: Player) -> Policy:
     return policy_for(player.ai_config.archetype)
 
 
-def run_ai_setup_step(snapshot: GameSnapshot, rng: SeededRNG) -> bool:
+def run_ai_setup_step(
+    snapshot: GameSnapshot,
+    rng: SeededRNG,
+    *,
+    on_event: Callable[[str, str | None, dict[str, Any]], None] | None = None,
+) -> bool:
     """If the active setup seat is AI, perform one placement.
+
+    `on_event(type, actor, payload)` is invoked after the snapshot is mutated
+    so the service layer can append an entry to the event log AND persist
+    the snapshot. Without this, AI setup placements would be invisible to
+    the live HUD — they'd just appear in the next polled snapshot with no
+    explanation of who placed where.
 
     Returns True if an action was taken (caller should re-check phase),
     False if the active seat is human or setup is done.
@@ -58,17 +69,24 @@ def run_ai_setup_step(snapshot: GameSnapshot, rng: SeededRNG) -> bool:
 
     if snapshot.game.setup.phase == "troops":
         target = policy.setup_troop_target(snapshot, player.player_id, rng)
-        setup_engine.place_troop(snapshot, player.player_id, PlaceTroop(country_id=target))
+        action = PlaceTroop(country_id=target)
+        setup_engine.place_troop(snapshot, player.player_id, action)
+        if on_event:
+            on_event("place_troop", player.player_id, action.model_dump())
         return True
     if snapshot.game.setup.phase == "researchers":
         target = policy.setup_researcher_target(snapshot, player.player_id, rng)
-        setup_engine.place_researcher(
-            snapshot, player.player_id, PlaceResearcher(country_id=target)
-        )
+        action_r = PlaceResearcher(country_id=target)
+        setup_engine.place_researcher(snapshot, player.player_id, action_r)
+        if on_event:
+            on_event("place_researcher", player.player_id, action_r.model_dump())
         return True
     if snapshot.game.setup.phase == "capitals":
         target = policy.setup_capital_target(snapshot, player.player_id, rng)
-        setup_engine.place_capital(snapshot, player.player_id, PlaceCapital(country_id=target))
+        action_c = PlaceCapital(country_id=target)
+        setup_engine.place_capital(snapshot, player.player_id, action_c)
+        if on_event:
+            on_event("place_capital", player.player_id, action_c.model_dump())
         return True
     return False
 
