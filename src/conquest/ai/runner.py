@@ -16,7 +16,7 @@ as a human submission.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from conquest.ai.archetypes import policy_for
 from conquest.ai.policy import Policy
@@ -72,8 +72,19 @@ def run_ai_setup_step(snapshot: GameSnapshot, rng: SeededRNG) -> bool:
     return False
 
 
-def run_ai_turn(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult | None:
-    """Run a single AI player's full turn. Returns the virus result if end-of-round fires."""
+def run_ai_turn(
+    snapshot: GameSnapshot,
+    rng: SeededRNG,
+    *,
+    on_step: Callable[[GameSnapshot], None] | None = None,
+) -> VirusPhaseResult | None:
+    """Run a single AI player's full turn. Returns the virus result if end-of-round fires.
+
+    `on_step` (optional): invoked after each action mutates the snapshot —
+    reinforcements, every in-game action, and end-of-turn. The service uses
+    this to sleep + persist the intermediate snapshot so live clients see
+    the AI play tick-by-tick rather than jump.
+    """
     if snapshot.game.status != "in_progress":
         return None
     player_id = snapshot.game.turn.active_player_id
@@ -89,7 +100,6 @@ def run_ai_turn(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult | No
         placements = policy.reinforce(
             snapshot, player_id, snapshot.game.turn.reinforcements_to_place, rng
         )
-        # Fall back: dump everything on the first owned country.
         if not placements:
             owned = snapshot.countries_owned_by(player_id)
             if owned:
@@ -101,6 +111,8 @@ def run_ai_turn(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult | No
                 PlaceReinforcements(placements=placements),
                 rng,
             )
+            if on_step is not None:
+                on_step(snapshot)
 
     # Actions sub-phase.
     intents = policy.take_actions(snapshot, player_id, rng)
@@ -113,11 +125,16 @@ def run_ai_turn(snapshot: GameSnapshot, rng: SeededRNG) -> VirusPhaseResult | No
             apply_action(snapshot, player_id, action, rng)
         except Exception:  # noqa: BLE001 — invalid intent: skip rather than crash a sim
             continue
+        if on_step is not None:
+            on_step(snapshot)
 
     # End the turn (also runs virus phase if this closes the round).
     if snapshot.game.status != "in_progress":
         return None
-    return turn_engine.end_turn(snapshot, player_id, rng)
+    result = turn_engine.end_turn(snapshot, player_id, rng)
+    if on_step is not None:
+        on_step(snapshot)
+    return result
 
 
 def run_ai_until_human(snapshot: GameSnapshot, rng: SeededRNG, *, max_iters: int = 100) -> None:

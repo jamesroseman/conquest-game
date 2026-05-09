@@ -112,6 +112,11 @@ class Path(CamelModel):
 class Country(CamelModel):
     country_id: str
     name: str
+    # Short human-readable code like "A1" / "B3". Letter = continent index
+    # (A = first, B = second, ...). Number = 1-based position within the
+    # continent. Stable across renders; used by the UI badge so players
+    # can refer to "B3" verbally without reading the procedural name.
+    tag: str = ""
     continent_id: str
     tiles: list[tuple[int, int]]
     centroid: tuple[float, float]

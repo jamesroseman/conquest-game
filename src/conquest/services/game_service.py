@@ -98,10 +98,11 @@ class GameService:
             game_id=game_id,
             map_id=None,  # generated at start_game once player count is known
             name=name or f"Game {game_id[2:8]}",
-            # Default live games to a half-second AI pause so bot turns play
-            # at a watchable cadence. Tests pass `config` explicitly to keep
-            # the model-level default (0) and run instantly.
-            config=config or GameConfig(ai_action_delay_ms=500),
+            # Default live games to a 2-second AI pause per action / setup
+            # placement so bot turns play at a deliberate cadence. Tests pass
+            # `config` explicitly to keep the model-level default (0) and
+            # run instantly.
+            config=config or GameConfig(ai_action_delay_ms=2000),
             status="lobby",
             created_at=now,
             updated_at=now,
@@ -483,6 +484,16 @@ class GameService:
 
     def _pace_ai_turns(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
         delay_s = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
+
+        def on_step(snap: GameSnapshot) -> None:
+            # Sleep BETWEEN actions and save so polling clients see the
+            # action land before the next one fires.
+            if delay_s > 0:
+                time.sleep(delay_s)
+            snap.game.updated_at = datetime.now(UTC)
+            snap.game.rng_cursor = rng.cursor
+            self._repo.save_snapshot(snap)
+
         guard = 0
         max_iters = 100
         while guard < max_iters:
@@ -494,19 +505,13 @@ class GameService:
                 return
             if snapshot.players[pid].kind != "ai":
                 return
-            if delay_s > 0:
-                time.sleep(delay_s)
-            run_ai_turn(snapshot, rng)
+            run_ai_turn(snapshot, rng, on_step=on_step)
             snapshot.game.updated_at = datetime.now(UTC)
             snapshot.game.rng_cursor = rng.cursor
             self._repo.save_snapshot(snapshot)
 
     def _pace_ai_setup(self, snapshot: GameSnapshot, rng: SeededRNG) -> None:
         delay_s = max(0, snapshot.game.config.ai_action_delay_ms) / 1000.0
-        # Use a short fraction of the per-turn delay for setup placements —
-        # placement is one tile per step and would feel sluggish at the full
-        # delay across 30+ tiles.
-        per_step_s = delay_s / 4
         max_iters = (
             snapshot.game.player_count * snapshot.game.config.starting_troops_per_player + 50
         )
@@ -518,8 +523,8 @@ class GameService:
             snapshot.game.updated_at = datetime.now(UTC)
             snapshot.game.rng_cursor = rng.cursor
             self._repo.save_snapshot(snapshot)
-            if per_step_s > 0:
-                time.sleep(per_step_s)
+            if delay_s > 0:
+                time.sleep(delay_s)
 
     # --- helpers --------------------------------------------------------------
 

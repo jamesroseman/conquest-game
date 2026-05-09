@@ -94,6 +94,13 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
             relabeled[x][y] = cont_idx
     grid = relabeled
 
+    # Eliminate single-tile ocean "lakes" — a single ocean tile boxed in by
+    # four land neighbours is hard to read on the map and serves no
+    # gameplay purpose. Convert it to land of the dominant neighbour
+    # continent. Iterates until stable so 2x1 inland lakes also fill in
+    # (each tile gets resolved as soon as its only ocean neighbour does).
+    _fill_single_tile_lakes(grid, width, height, landmass_to_continent)
+
     # Continent 0 is the designated island (placed first with extra ocean buffer).
     # The rules engine treats `is_island` as a labeled property used for sea-path quotas
     # and rendering; geometric isolation is enforced equally for all landmasses.
@@ -153,6 +160,16 @@ def _attempt(params: MapGenParams, rng: SeededRNG) -> Map:
     for p in paths.values():
         countries[p.country_a_id].path_ids.append(p.path_id)
         countries[p.country_b_id].path_ids.append(p.path_id)
+
+    # --- Country tags (A1, B2, ...) ------------------------------------------
+    # Letter = continent index (A=cont_0, B=cont_1, ...). Number = 1-based
+    # position within the continent. The UI badge displays this short code
+    # so players can refer to "B3" verbally instead of reading procedural
+    # names off the map.
+    for cont_idx, cont_id in enumerate(sorted(continents.keys())):
+        letter = chr(ord("A") + cont_idx)
+        for i, ctry_id in enumerate(continents[cont_id].country_ids, start=1):
+            countries[ctry_id].tag = f"{letter}{i}"
 
     # --- Step 8: per-continent climate + per-tile biome -----------------------
     # Climate is picked from each continent's centroid latitude band (with a small
@@ -328,6 +345,49 @@ def _adjacent_to_other_label(
                 if v != -1 and v != label:
                     return True
     return False
+
+
+def _fill_single_tile_lakes(
+    grid: list[list[int]],
+    w: int,
+    h: int,
+    landmass_to_continent: list[list[tuple[int, int]]],
+) -> None:
+    """Convert any ocean tile fully boxed-in by 4 land neighbours into land.
+
+    Repeats until stable, so 2-tile or 3-tile inland lakes drain in a chain
+    (each turns into land as soon as its only ocean neighbour does). Edge
+    tiles never qualify because at least one of their 4-neighbour positions
+    is off-grid. The filled tile joins the most-frequent neighbour
+    continent, so the resulting landmass stays contiguous.
+    """
+    from collections import Counter
+
+    changed = True
+    while changed:
+        changed = False
+        for x in range(w):
+            for y in range(h):
+                if grid[x][y] != -1:
+                    continue
+                cont_counts: Counter[int] = Counter()
+                landlocked = True
+                for dx, dy in _NEIGHBORS_4:
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < w and 0 <= ny < h):
+                        landlocked = False
+                        break
+                    v = grid[nx][ny]
+                    if v == -1:
+                        landlocked = False
+                        break
+                    cont_counts[v] += 1
+                if not landlocked:
+                    continue
+                cont_id, _ = cont_counts.most_common(1)[0]
+                grid[x][y] = cont_id
+                landmass_to_continent[cont_id].append((x, y))
+                changed = True
 
 
 def _connected_landmasses(grid: list[list[int]], w: int, h: int) -> list[list[tuple[int, int]]]:

@@ -123,6 +123,7 @@ class Path:
 class Country:
     country_id: str
     name: str
+    tag: str
     continent_id: str
     centroid_x: float
     centroid_y: float
@@ -134,6 +135,7 @@ class Country:
         return cls(
             country_id=m.country_id,
             name=m.name,
+            tag=m.tag,
             continent_id=m.continent_id,
             centroid_x=m.centroid[0],
             centroid_y=m.centroid[1],
