@@ -7,6 +7,7 @@ to test and reason about.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 
 from conquest.game.rng import SeededRNG
@@ -110,51 +111,86 @@ class BaselinePolicy:
     # --- Actions ---------------------------------------------------------------
 
     def take_actions(self, snapshot: GameSnapshot, player_id: str, rng: SeededRNG) -> list[Action]:
+        """Spend the full action budget. Each iteration considers every
+        viable option for the current snapshot and picks one weighted by
+        the archetype priors. We only stop early when NO action is
+        currently viable (e.g. no border to attack, no troops to move),
+        not just because a probability roll didn't fire.
+
+        The previous implementation gated every option behind an
+        independent `rng.random() < weight*const` check and `break`-ed
+        when none fired — so a weights-low archetype could take 1 action
+        out of 5 even with plenty of viable moves. That made AI turns
+        feel inert and used roughly 1/5 of the action budget.
+        """
         actions: list[Action] = []
         max_actions = snapshot.game.turn.actions_remaining
-        cfg = snapshot.game.config
+        # Reason over a deep copy. The runner calls apply_action against
+        # the *real* snapshot, so we must not mutate it here — earlier
+        # versions did, which left the actual state with already-spent
+        # troops by the time apply_action validated the intent and
+        # caused every attack after the first to fail validation
+        # silently (see runner.run_ai_turn's broad except).
+        sim = copy.deepcopy(snapshot)
         for _ in range(max_actions):
-            # Cure if our researcher sits on a heavily-infected country.
-            cure_action = self._maybe_cure(snapshot, player_id)
-            if cure_action is not None and rng.random() < self.weights.cure * 0.5:
-                actions.append(cure_action)
-                # Mutate snapshot lightly so subsequent decisions don't repeat.
-                cur = snapshot.players[player_id].researcher_country_id
+            options: list[tuple[Action, float]] = []
+
+            cure_a = self._maybe_cure(sim, player_id)
+            if cure_a is not None:
+                options.append((cure_a, max(0.05, self.weights.cure)))
+
+            vax_a = self._maybe_vaccine(sim, player_id)
+            if vax_a is not None:
+                options.append((vax_a, max(0.10, self.weights.cooperate_on_vaccine)))
+
+            atk_a = self._maybe_attack(sim, player_id, rng)
+            if atk_a is not None:
+                options.append((atk_a, max(0.05, self.weights.attack)))
+
+            mv_a = self._maybe_move_researcher(sim, player_id)
+            if mv_a is not None:
+                options.append((mv_a, max(0.05, self.weights.cure * 0.5)))
+
+            mvt_a = self._maybe_consolidate(sim, player_id, rng)
+            if mvt_a is not None:
+                options.append((mvt_a, max(0.05, self.weights.consolidate)))
+
+            if not options:
+                break
+
+            # Weighted random pick: archetype priors influence WHICH
+            # option gets played, but we always take SOMETHING when any
+            # option is viable.
+            total = sum(w for _, w in options)
+            roll = rng.random() * total
+            cum = 0.0
+            chosen: Action = options[0][0]
+            for opt, w in options:
+                cum += w
+                if roll < cum:
+                    chosen = opt
+                    break
+
+            actions.append(chosen)
+
+            # Mutate the simulated copy so subsequent iterations see updated
+            # state. The real snapshot is untouched.
+            if isinstance(chosen, Cure):
+                cur = sim.players[player_id].researcher_country_id
                 if cur is not None:
-                    snapshot.country_states[cur].disease_cubes = 0
-                continue
-            # Vaccine if all conditions look good (uncommon — most archetypes won't get this).
-            vax = self._maybe_vaccine(snapshot, player_id)
-            if vax is not None and rng.random() < self.weights.cooperate_on_vaccine:
-                actions.append(vax)
-                cur = snapshot.players[player_id].researcher_country_id
+                    sim.country_states[cur].disease_cubes = 0
+            elif isinstance(chosen, CreateVaccine):
+                cur = sim.players[player_id].researcher_country_id
                 if cur is not None:
-                    snapshot.country_states[cur].vaccinated = True
-                continue
-            # Attack a weak adjacent enemy.
-            atk = self._maybe_attack(snapshot, player_id, rng)
-            if atk is not None and rng.random() < self.weights.attack * 0.6:
-                actions.append(atk)
-                # Apply naively: ignore success vs failure for planning, just decrement source.
-                snapshot.country_states[atk.from_country_id].armies -= atk.armies
-                continue
-            # Move researcher toward an infected country if we can.
-            mv = self._maybe_move_researcher(snapshot, player_id)
-            if mv is not None and rng.random() < self.weights.cure * 0.4:
-                actions.append(mv)
-                snapshot.players[player_id].researcher_country_id = mv.to_country_id
-                continue
-            # Consolidate troops toward a border.
-            mvt = self._maybe_consolidate(snapshot, player_id, rng)
-            if mvt is not None and rng.random() < self.weights.consolidate:
-                actions.append(mvt)
-                snapshot.country_states[mvt.from_country_id].armies -= mvt.armies
-                snapshot.country_states[mvt.to_country_id].armies += mvt.armies
-                continue
-            # No good move — stop spending actions.
-            break
-        # Discard unused budget (caller calls end_turn).
-        _ = cfg
+                    sim.country_states[cur].vaccinated = True
+            elif isinstance(chosen, Attack):
+                sim.country_states[chosen.from_country_id].armies -= chosen.armies
+            elif isinstance(chosen, MoveResearcherAdjacent):
+                sim.players[player_id].researcher_country_id = chosen.to_country_id
+            elif isinstance(chosen, MoveTroops):
+                sim.country_states[chosen.from_country_id].armies -= chosen.armies
+                sim.country_states[chosen.to_country_id].armies += chosen.armies
+
         return actions
 
     # --- helpers ---------------------------------------------------------------

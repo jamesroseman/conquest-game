@@ -40,12 +40,9 @@ def test_add_ai_seats_and_start(game_service: GameService) -> None:
     assert snap.map is not None
     # All countries initialized.
     assert len(snap.country_states) == len(snap.map.countries)
-    # All players have starting troops to place — the service sets the
-    # initial budget to 2 troops per country on the generated map (see
-    # game_service.start_game).
-    expected_initial = max(8, 2 * len(snap.map.countries))
+    # All players have starting troops to place.
     for p in snap.players.values():
-        assert p.troops_remaining_to_place == expected_initial
+        assert p.troops_remaining_to_place == snap.game.config.starting_troops_per_player
 
 
 def test_start_requires_min_players(game_service: GameService) -> None:

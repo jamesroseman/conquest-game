@@ -304,13 +304,11 @@ class GameService:
 
         snapshot = self._load_snapshot(game_id)
         setup_engine.initialize_country_states(snapshot)
-        # Initial troop budget: 2 troops for every country on the map. With
-        # the 2-at-a-time placement rule that gives every player roughly
-        # `country_count` placement clicks, balanced across players.
-        country_count = len(m.countries)
-        initial_troops = max(8, 2 * country_count)
+        # Standard Risk-style budget — `starting_troops_per_player` (30
+        # by default), placed 2 at a time during setup so the click count
+        # is half the troop count.
         for p in snapshot.players.values():
-            p.troops_remaining_to_place = initial_troops
+            p.troops_remaining_to_place = snapshot.game.config.starting_troops_per_player
         self._repo.save_snapshot(snapshot)
         self._append_event(
             game_id, "game_started", actor=owner_user_id, payload={"map_id": m.map_id}

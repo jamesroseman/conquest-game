@@ -637,6 +637,51 @@ def _add_sea_paths(
     sea_count_per_country: dict[str, int] = {cid: 0 for cid in countries}
     chosen_pairs: set[tuple[str, str]] = set()
 
+    # Allow at most this many land tiles (belonging to a third country)
+    # to intercept the centroid-to-centroid line. 6 covers small peninsulas
+    # and skinny landmasses; a sea path that traverses a full continent
+    # (10+ tile-wide barrier between two coastal centroids) gets rejected
+    # so the client doesn't draw a dotted line through obvious land.
+    MAX_LAND_CROSSINGS = 6
+
+    def line_crosses_other_land(a_id: str, b_id: str) -> bool:
+        """True if the straight line between the two countries' centroids
+        passes through > MAX_LAND_CROSSINGS land tiles belonging to a
+        country other than the two endpoints. Catches the "A1 has a
+        dotted line through Borealis to D3" failure mode.
+        """
+        ax, ay = countries[a_id].centroid
+        bx, by = countries[b_id].centroid
+        x0, y0 = int(round(ax)), int(round(ay))
+        x1, y1 = int(round(bx)), int(round(by))
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
+        err = dx - dy
+        x, y = x0, y0
+        steps = 0
+        crossings = 0
+        while True:
+            steps += 1
+            if 0 <= x < params.width and 0 <= y < params.height:
+                cid = tile_country.get((x, y))
+                if cid is not None and cid != a_id and cid != b_id:
+                    crossings += 1
+                    if crossings > MAX_LAND_CROSSINGS:
+                        return True
+            if x == x1 and y == y1:
+                return False
+            if steps > params.width + params.height + 4:
+                return False  # pathological; treat as ok
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x += sx
+            if e2 < dx:
+                err += dx
+                y += sy
+
     def add_pair(a: str, b: str) -> bool:
         nonlocal next_idx
         a, b = sorted([a, b])
@@ -647,6 +692,8 @@ def _add_sea_paths(
         if sea_count_per_country[a] >= SEA_PATHS_PER_COUNTRY_MAX:
             return False
         if sea_count_per_country[b] >= SEA_PATHS_PER_COUNTRY_MAX:
+            return False
+        if line_crosses_other_land(a, b):
             return False
         chosen_pairs.add((a, b))
         pid = f"sp_{next_idx}"
@@ -718,6 +765,57 @@ def _add_sea_paths(
             # a different one next iteration. Break if no progress can be
             # made to avoid spinning forever.
             break
+
+    # The island must have at least 2 sea paths so it isn't isolated by a
+    # single chokepoint. Bridging above only guarantees 1. Find island
+    # countries and try to wire up additional sea links to non-island
+    # neighbours (closest available, capacity- and crossing-checked).
+    island_ids = {cid for cid, cont in continents.items() if cont.is_island}
+
+    def island_sea_count() -> int:
+        return sum(
+            1
+            for p in paths.values()
+            if p.kind == "sea"
+            and (
+                countries[p.country_a_id].continent_id in island_ids
+                or countries[p.country_b_id].continent_id in island_ids
+            )
+        )
+
+    safety = 0
+    while island_sea_count() < 2 and safety < 200:
+        safety += 1
+        # Pick the closest island↔mainland coastal pair we haven't used.
+        best_pair = None
+        best_d = math.inf
+        for ic, country in countries.items():
+            if country.continent_id not in island_ids:
+                continue
+            if not _is_coastal(country, tile_country):
+                continue
+            if sea_count_per_country[ic] >= SEA_PATHS_PER_COUNTRY_MAX:
+                continue
+            for mc, m_country in countries.items():
+                if m_country.continent_id in island_ids:
+                    continue
+                if not _is_coastal(m_country, tile_country):
+                    continue
+                if sea_count_per_country[mc] >= SEA_PATHS_PER_COUNTRY_MAX:
+                    continue
+                a_b = tuple(sorted([ic, mc]))
+                if a_b in chosen_pairs:
+                    continue
+                d = centroid_dist(ic, mc)
+                if d < best_d:
+                    best_d = d
+                    best_pair = (ic, mc)
+        if best_pair is None:
+            break
+        if not add_pair(*best_pair):
+            # Likely rejected by line_crosses_other_land; mark this pair
+            # so we don't reconsider it next iteration.
+            chosen_pairs.add(tuple(sorted(best_pair)))  # type: ignore[arg-type]
 
     # Optional redundancy: add a small handful of extra crossings between
     # different continents so the graph isn't a single fragile chain. Cap
